@@ -1,3 +1,10 @@
+/**
+ * Copyright (c) 2014-present, Facebook, Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 var ts = require('typescript');
 
 var TypeKind = require('./TypeKind');
@@ -79,7 +86,9 @@ function DocVisitor(source) {
     if (!shouldIgnore(comment)) {
       var name = node.name
         ? node.name.text
-        : node.stringLiteral ? node.stringLiteral.text : '';
+        : node.stringLiteral
+          ? node.stringLiteral.text
+          : '';
 
       if (comment) {
         setIn(data, [name, 'doc'], comment);
@@ -169,7 +178,7 @@ function DocVisitor(source) {
       trivia.forEach(range => {
         if (range.kind === ts.SyntaxKind.SingleLineCommentTrivia) {
           pushIn(data, ['groups'], {
-            title: source.text.substring(range.pos + 3, range.end)
+            title: source.text.substring(range.pos + 3, range.end),
           });
         }
       });
@@ -188,7 +197,7 @@ function DocVisitor(source) {
       ensureGroup(node);
 
       var propertyObj = {
-        line: getLineNum(node)
+        line: getLineNum(node),
         // name: name // redundant
       };
 
@@ -262,50 +271,60 @@ function DocVisitor(source) {
 
   function parseType(node) {
     switch (node.kind) {
+      case ts.SyntaxKind.NeverKeyword:
+        return {
+          k: TypeKind.NeverKeyword,
+        };
       case ts.SyntaxKind.AnyKeyword:
         return {
-          k: TypeKind.Any
+          k: TypeKind.Any,
         };
       case ts.SyntaxKind.ThisType:
         return {
-          k: TypeKind.This
+          k: TypeKind.This,
         };
       case ts.SyntaxKind.UndefinedKeyword:
         return {
-          k: TypeKind.Undefined
+          k: TypeKind.Undefined,
         };
       case ts.SyntaxKind.BooleanKeyword:
         return {
-          k: TypeKind.Boolean
+          k: TypeKind.Boolean,
         };
       case ts.SyntaxKind.NumberKeyword:
         return {
-          k: TypeKind.Number
+          k: TypeKind.Number,
         };
       case ts.SyntaxKind.StringKeyword:
         return {
-          k: TypeKind.String
+          k: TypeKind.String,
         };
       case ts.SyntaxKind.UnionType:
         return {
           k: TypeKind.Union,
-          types: node.types.map(parseType)
+          types: node.types.map(parseType),
+        };
+      case ts.SyntaxKind.IntersectionType:
+        return {
+          k: TypeKind.Intersection,
+          types: node.types.map(parseType),
         };
       case ts.SyntaxKind.TupleType:
         return {
           k: TypeKind.Tuple,
-          types: node.elementTypes.map(parseType)
+          types: node.elementTypes.map(parseType),
         };
       case ts.SyntaxKind.IndexedAccessType:
         return {
           k: TypeKind.Indexed,
           type: parseType(node.objectType),
-          index: parseType(node.indexType)
+          index: parseType(node.indexType),
         };
       case ts.SyntaxKind.TypeOperator:
-        var operator = node.operator === ts.SyntaxKind.KeyOfKeyword
-          ? 'keyof'
-          : node.operator === ts.SyntaxKind.ReadonlyKeyword
+        var operator =
+          node.operator === ts.SyntaxKind.KeyOfKeyword
+            ? 'keyof'
+            : node.operator === ts.SyntaxKind.ReadonlyKeyword
               ? 'readonly'
               : undefined;
         if (!operator) {
@@ -316,7 +335,7 @@ function DocVisitor(source) {
         return {
           k: TypeKind.Operator,
           operator,
-          type: parseType(node.type)
+          type: parseType(node.type),
         };
       case ts.SyntaxKind.TypeLiteral:
         return {
@@ -327,47 +346,47 @@ function DocVisitor(source) {
                 return {
                   index: true,
                   params: m.parameters.map(p => parseParam(p)),
-                  type: parseType(m.type)
+                  type: parseType(m.type),
                 };
               case ts.SyntaxKind.PropertySignature:
                 return {
                   name: m.name.text,
-                  type: m.type && parseType(m.type)
+                  type: m.type && parseType(m.type),
                 };
             }
             throw new Error('Unknown member kind: ' + ts.SyntaxKind[m.kind]);
-          })
+          }),
         };
       case ts.SyntaxKind.ArrayType:
         return {
           k: TypeKind.Array,
-          type: parseType(node.elementType)
+          type: parseType(node.elementType),
         };
       case ts.SyntaxKind.FunctionType:
         return {
           k: TypeKind.Function,
           typeParams: node.typeParameters && node.typeParameters.map(parseType),
           params: node.parameters.map(p => parseParam(p)),
-          type: parseType(node.type)
+          type: parseType(node.type),
         };
       case ts.SyntaxKind.TypeReference:
         var name = getNameText(node.typeName);
         if (isTypeParam(name)) {
           return {
             k: TypeKind.Param,
-            param: name
+            param: name,
           };
         }
         return {
           k: TypeKind.Type,
           name: getNameText(node.typeName),
-          args: node.typeArguments && node.typeArguments.map(parseType)
+          args: node.typeArguments && node.typeArguments.map(parseType),
         };
       case ts.SyntaxKind.ExpressionWithTypeArguments:
         return {
           k: TypeKind.Type,
           name: getNameText(node.expression),
-          args: node.typeArguments && node.typeArguments.map(parseType)
+          args: node.typeArguments && node.typeArguments.map(parseType),
         };
       case ts.SyntaxKind.QualifiedName:
         var type = parseType(node.right);
@@ -375,7 +394,7 @@ function DocVisitor(source) {
         return type;
       case ts.SyntaxKind.TypePredicate:
         return {
-          k: TypeKind.Boolean
+          k: TypeKind.Boolean,
         };
       case ts.SyntaxKind.MappedType:
         // Simplification of MappedType to typical Object type.
@@ -384,13 +403,15 @@ function DocVisitor(source) {
           members: [
             {
               index: true,
-              params: {
-                name: 'key',
-                type: TypeKind.String
-              },
-              type: parseType(node.type)
-            }
-          ]
+              params: [
+                {
+                  name: 'key',
+                  type: { k: TypeKind.String },
+                },
+              ],
+              type: parseType(node.type),
+            },
+          ],
         };
     }
     throw new Error('Unknown type kind: ' + ts.SyntaxKind[node.kind]);
@@ -399,7 +420,7 @@ function DocVisitor(source) {
   function parseParam(node) {
     var p = {
       name: node.name.text,
-      type: parseType(node.type)
+      type: parseType(node.type),
     };
     if (node.dotDotDotToken) {
       p.varArgs = true;
@@ -422,7 +443,7 @@ function getLineNum(node) {
 var COMMENT_NOTE_RX = /^@(\w+)\s*(.*)$/;
 
 var NOTE_BLACKLIST = {
-  override: true
+  override: true,
 };
 
 function getDoc(node) {
@@ -438,7 +459,10 @@ function getDoc(node) {
     .slice(1, -1)
     .map(l => l.trim().substr(2));
 
-  var paragraphs = lines.filter(l => l[0] !== '@').join('\n').split('\n\n');
+  var paragraphs = lines
+    .filter(l => l[0] !== '@')
+    .join('\n')
+    .split('\n\n');
 
   var synopsis = paragraphs && paragraphs.shift();
   var description = paragraphs && paragraphs.join('\n\n');
@@ -451,7 +475,7 @@ function getDoc(node) {
   return {
     synopsis,
     description,
-    notes
+    notes,
   };
 }
 

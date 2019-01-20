@@ -1,6 +1,13 @@
+/**
+ * Copyright (c) 2014-present, Facebook, Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 var React = require('react');
 var Router = require('react-router');
-var { Seq } = require('../../../../');
+var { Map, Seq } = require('../../../../');
 var defs = require('../../../lib/getTypeDefs');
 
 var SideBar = React.createClass({
@@ -10,7 +17,10 @@ var SideBar = React.createClass({
     return (
       <div className="sideBar">
         <div className="toolBar">
-          <div onClick={this.props.toggleShowInGroups}>
+          <div
+            onClick={this.props.toggleShowInGroups}
+            onKeyPress={this.props.toggleShowInGroups}
+          >
             <span className={this.props.showInGroups && 'selected'}>
               Grouped
             </span>
@@ -19,7 +29,10 @@ var SideBar = React.createClass({
               Alphabetized
             </span>
           </div>
-          <div onClick={this.props.toggleShowInherited}>
+          <div
+            onClick={this.props.toggleShowInherited}
+            onKeyPress={this.props.toggleShowInherited}
+          >
             <span className={this.props.showInherited && 'selected'}>
               Inherited
             </span>
@@ -32,7 +45,9 @@ var SideBar = React.createClass({
         <div className="scrollContent">
           <h4 className="groupTitle">API</h4>
           {Seq(type.module)
+            .flatMap((t, name) => flattenSubmodules(Map(), t, name))
             .map((t, name) => this.renderSideBarType(name, t))
+            .valueSeq()
             .toArray()}
         </div>
       </div>
@@ -44,7 +59,6 @@ var SideBar = React.createClass({
     var isFunction = !type.interface && !type.module;
     var call = type.call;
     var functions = Seq(type.module).filter(t => !t.interface && !t.module);
-    var types = Seq(type.module).filter(t => t.interface || t.module);
 
     var label = typeName + (isFunction ? '()' : '');
 
@@ -54,11 +68,10 @@ var SideBar = React.createClass({
 
     var memberGroups = this.props.memberGroups;
 
-    var members = !isFocus || isFunction
-      ? null
-      : <div className="members">
-
-          {call &&
+    var members =
+      !isFocus || isFunction ? null : (
+        <div className="members">
+          {call && (
             <section>
               <h4 className="groupTitle">Construction</h4>
               <div>
@@ -66,9 +79,10 @@ var SideBar = React.createClass({
                   {typeName + '()'}
                 </Router.Link>
               </div>
-            </section>}
+            </section>
+          )}
 
-          {functions.count() > 0 &&
+          {functions.count() > 0 && (
             <section>
               <h4 className="groupTitle">Static Methods</h4>
               {functions
@@ -79,22 +93,10 @@ var SideBar = React.createClass({
                     </Router.Link>
                   </div>
                 ))
+                .valueSeq()
                 .toArray()}
-            </section>}
-
-          {types.count() > 0 &&
-            <section>
-              <h4 className="groupTitle">Types</h4>
-              {types
-                .map((t, name) => (
-                  <div key={name}>
-                    <Router.Link to={'/' + typeName + '.' + name}>
-                      {typeName + '.' + name}
-                    </Router.Link>
-                  </div>
-                ))
-                .toArray()}
-            </section>}
+            </section>
+          )}
 
           <section>
             {Seq(memberGroups)
@@ -115,13 +117,15 @@ var SideBar = React.createClass({
                                 (member.memberDef.signatures ? '()' : '')}
                             </Router.Link>
                           </div>
-                        ))
+                        )),
                       ])
               )
               .flatten()
+              .valueSeq()
               .toArray()}
           </section>
-        </div>;
+        </div>
+      );
 
     return (
       <div key={typeName}>
@@ -129,7 +133,20 @@ var SideBar = React.createClass({
         {members}
       </div>
     );
-  }
+  },
 });
+
+function flattenSubmodules(modules, type, name) {
+  modules = modules.set(name, type);
+  return type.module
+    ? Seq(type.module)
+        .filter(t => t.interface || t.module)
+        .reduce(
+          (modules, subT, subName) =>
+            flattenSubmodules(modules, subT, name + '.' + subName),
+          modules
+        )
+    : modules;
+}
 
 module.exports = SideBar;

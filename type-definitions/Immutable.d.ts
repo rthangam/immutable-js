@@ -1,10 +1,8 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 /**
@@ -36,7 +34,7 @@
  * ```
  *
  * Sometimes, methods can accept different kinds of data or return different
- * kinds of data, and this is described with a *type variable*, which are
+ * kinds of data, and this is described with a *type variable*, which is
  * typically in all-caps. For example, a function which always returns the same
  * kind of data it was provided would look like this:
  *
@@ -82,14 +80,14 @@
  *
  *
  * Note: All examples are presented in the modern [ES2015][] version of
- * JavaScript. To run in older browsers, they need to be translated to ES3.
+ * JavaScript. Use tools like Babel to support older browsers.
  *
  * For example:
  *
  * ```js
  * // ES2015
  * const mappedFoo = foo.map(x => x * x);
- * // ES3
+ * // ES5
  * var mappedFoo = foo.map(function (x) { return x * x; });
  * ```
  *
@@ -100,249 +98,6 @@
  */
 
 declare module Immutable {
-
-  /**
-   * Deeply converts plain JS objects and arrays to Immutable Maps and Lists.
-   *
-   * If a `reviver` is optionally provided, it will be called with every
-   * collection as a Seq (beginning with the most nested collections
-   * and proceeding to the top-level collection itself), along with the key
-   * refering to each collection and the parent JS object provided as `this`.
-   * For the top level, object, the key will be `""`. This `reviver` is expected
-   * to return a new Immutable Collection, allowing for custom conversions from
-   * deep JS objects. Finally, a `path` is provided which is the sequence of
-   * keys to this value from the starting value.
-   *
-   * This example converts native JS data to List and OrderedMap:
-   *
-   * ```js
-   * const { fromJS, isIndexed } = require('immutable')
-   * fromJS({ a: {b: [10, 20, 30]}, c: 40}, function (key, value, path) {
-   *   console.log(key, value, path)
-   *   return isIndexed(value) ? value.toList() : value.toOrderedMap()
-   * })
-   *
-   * > "b", [ 10, 20, 30 ], [ "a", "b" ]
-   * > "a", { b: [10, 20, 30] }, c: 40 }, [ "a" ]
-   * > "", {a: {b: [10, 20, 30]}, c: 40}, []
-   * ```
-   *
-   * If `reviver` is not provided, the default behavior will convert Arrays into
-   * Lists and Objects into Maps.
-   *
-   * `reviver` acts similarly to the [same parameter in `JSON.parse`][1].
-   *
-   * `fromJS` is conservative in its conversion. It will only convert
-   * arrays which pass `Array.isArray` to Lists, and only raw objects (no custom
-   * prototype) to Map.
-   *
-   * Keep in mind, when using JS objects to construct Immutable Maps, that
-   * JavaScript Object properties are always strings, even if written in a
-   * quote-less shorthand, while Immutable Maps accept keys of any type.
-   *
-   * ```js
-   * let obj = { 1: "one" };
-   * Object.keys(obj); // [ "1" ]
-   * obj["1"]; // "one"
-   * obj[1];   // "one"
-   *
-   * let map = Map(obj);
-   * map.get("1"); // "one"
-   * map.get(1);   // undefined
-   * ```
-   *
-   * Property access for JavaScript Objects first converts the key to a string,
-   * but since Immutable Map keys can be of any type the argument to `get()` is
-   * not altered.
-   *
-   * [1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse#Example.3A_Using_the_reviver_parameter
-   *      "Using the reviver parameter"
-   */
-  export function fromJS(
-    jsValue: any,
-    reviver?: (
-      key: string | number,
-      sequence: Collection.Keyed<string, any> | Collection.Indexed<any>,
-      path?: Array<string | number>
-    ) => any
-  ): any;
-
-
-  /**
-   * Value equality check with semantics similar to `Object.is`, but treats
-   * Immutable `Collection`s as values, equal if the second `Collection` includes
-   * equivalent values.
-   *
-   * It's used throughout Immutable when checking for equality, including `Map`
-   * key equality and `Set` membership.
-   *
-   * ```js
-   * import { Map, is } from 'immutable'
-   * const map1 = Map({ a: 1, b: 1, c: 1 })
-   * const map2 = Map({ a: 1, b: 1, c: 1 })
-   * assert(map1 !== map2)
-   * assert(Object.is(map1, map2) === false)
-   * assert(is(map1, map2) === true)
-   * ```
-   *
-   * `is()` compares primitive types like strings and numbers, Immutable.js
-   * collections like `Map` and `List`, but also any custom object which
-   * implements `ValueObject` by providing `equals()` and `hashCode()` methods.
-   *
-   * Note: Unlike `Object.is`, `Immutable.is` assumes `0` and `-0` are the same
-   * value, matching the behavior of ES6 Map key equality.
-   */
-  export function is(first: any, second: any): boolean;
-
-
-  /**
-   * The `hash()` function is an important part of how Immutable determines if
-   * two values are equivalent and is used to determine how to store those
-   * values. Provided with any value, `hash()` will return a 31-bit integer.
-   *
-   * When designing Objects which may be equal, it's important than when a
-   * `.equals()` method returns true, that both values `.hashCode()` method
-   * return the same value. `hash()` may be used to produce those values.
-   *
-   * Note that `hash()` attempts to balance between speed and avoiding
-   * collisions, however it makes no attempt to produce secure hashes.
-   */
-  export function hash(value: any): number;
-
-  /**
-   * True if `maybeImmutable` is an Immutable Collection or Record.
-   *
-   * ```js
-   * const { isImmutable, Map, List, Stack } = require('immutable');
-   * isImmutable([]); // false
-   * isImmutable({}); // false
-   * isImmutable(Map()); // true
-   * isImmutable(List()); // true
-   * isImmutable(Stack()); // true
-   * isImmutable(Map().asMutable()); // false
-   * ```
-   */
-  export function isImmutable(maybeImmutable: any): maybeImmutable is Collection<any, any>;
-
-  /**
-   * True if `maybeCollection` is a Collection, or any of its subclasses.
-   *
-   * ```js
-   * const { isCollection, Map, List, Stack } = require('immutable');
-   * isCollection([]); // false
-   * isCollection({}); // false
-   * isCollection(Map()); // true
-   * isCollection(List()); // true
-   * isCollection(Stack()); // true
-   * ```
-   */
-  export function isCollection(maybeCollection: any): maybeCollection is Collection<any, any>;
-
-  /**
-   * True if `maybeKeyed` is a Collection.Keyed, or any of its subclasses.
-   *
-   * ```js
-   * const { isKeyed, Map, List, Stack } = require('immutable');
-   * isKeyed([]); // false
-   * isKeyed({}); // false
-   * isKeyed(Map()); // true
-   * isKeyed(List()); // false
-   * isKeyed(Stack()); // false
-   * ```
-   */
-  export function isKeyed(maybeKeyed: any): maybeKeyed is Collection.Keyed<any, any>;
-
-  /**
-   * True if `maybeIndexed` is a Collection.Indexed, or any of its subclasses.
-   *
-   * ```js
-   * const { isIndexed, Map, List, Stack, Set } = require('immutable');
-   * isIndexed([]); // false
-   * isIndexed({}); // false
-   * isIndexed(Map()); // false
-   * isIndexed(List()); // true
-   * isIndexed(Stack()); // true
-   * isIndexed(Set()); // false
-   * ```
-   */
-  export function isIndexed(maybeIndexed: any): maybeIndexed is Collection.Indexed<any>;
-
-  /**
-   * True if `maybeAssociative` is either a Keyed or Indexed Collection.
-   *
-   * ```js
-   * const { isAssociative, Map, List, Stack, Set } = require('immutable');
-   * isAssociative([]); // false
-   * isAssociative({}); // false
-   * isAssociative(Map()); // true
-   * isAssociative(List()); // true
-   * isAssociative(Stack()); // true
-   * isAssociative(Set()); // false
-   * ```
-   */
-  export function isAssociative(maybeAssociative: any): maybeAssociative is Collection.Keyed<any, any> | Collection.Indexed<any>;
-
-  /**
-   * True if `maybeOrdered` is a Collection where iteration order is well
-   * defined. True for Collection.Indexed as well as OrderedMap and OrderedSet.
-   *
-   * ```js
-   * const { isOrdered, Map, OrderedMap, List, Set } = require('immutable');
-   * isOrdered([]); // false
-   * isOrdered({}); // false
-   * isOrdered(Map()); // false
-   * isOrdered(OrderedMap()); // true
-   * isOrdered(List()); // true
-   * isOrdered(Set()); // false
-   * ```
-   */
-  export function isOrdered(maybeOrdered: any): boolean;
-
-  /**
-   * True if `maybeValue` is a JavaScript Object which has *both* `equals()`
-   * and `hashCode()` methods.
-   *
-   * Any two instances of *value objects* can be compared for value equality with
-   * `Immutable.is()` and can be used as keys in a `Map` or members in a `Set`.
-   */
-  export function isValueObject(maybeValue: any): maybeValue is ValueObject;
-
-  /**
-   * The interface to fulfill to qualify as a Value Object.
-   */
-  export interface ValueObject {
-    /**
-     * True if this and the other Collection have value equality, as defined
-     * by `Immutable.is()`.
-     *
-     * Note: This is equivalent to `Immutable.is(this, other)`, but provided to
-     * allow for chained expressions.
-     */
-    equals(other: any): boolean;
-
-    /**
-     * Computes and returns the hashed identity for this Collection.
-     *
-     * The `hashCode` of a Collection is used to determine potential equality,
-     * and is used when adding this to a `Set` or as a key in a `Map`, enabling
-     * lookup via a different instance.
-     *
-     * ```js
-     * const a = List([ 1, 2, 3 ]);
-     * const b = List([ 1, 2, 3 ]);
-     * assert(a !== b); // different instances
-     * const set = Set([ a ]);
-     * assert(set.has(b) === true);
-     * ```
-     *
-     * If two values have the same `hashCode`, they are [not guaranteed
-     * to be equal][Hash Collision]. If two values have different `hashCode`s,
-     * they must not be equal.
-     *
-     * [Hash Collision]: http://en.wikipedia.org/wiki/Collision_(computer_science)
-     */
-    hashCode(): number;
-  }
 
   /**
    * Lists are ordered indexed dense collections, much like a JavaScript
@@ -363,7 +118,9 @@ declare module Immutable {
     /**
      * True if the provided value is a List
      *
+     * <!-- runkit:activate -->
      * ```js
+     * const { List } = require('immutable');
      * List.isList([]); // false
      * List.isList(List()); // true
      * ```
@@ -373,14 +130,18 @@ declare module Immutable {
     /**
      * Creates a new List containing `values`.
      *
+     * <!-- runkit:activate -->
      * ```js
+     * const { List } = require('immutable');
      * List.of(1, 2, 3, 4)
      * // List [ 1, 2, 3, 4 ]
      * ```
      *
      * Note: Values are not altered or converted in any way.
      *
+     * <!-- runkit:activate -->
      * ```js
+     * const { List } = require('immutable');
      * List.of({x:1}, 2, [3], 4)
      * // List [ { x: 1 }, 2, [ 3 ], 4 ]
      * ```
@@ -392,6 +153,10 @@ declare module Immutable {
    * Create a new immutable List containing the values of the provided
    * collection-like.
    *
+   * Note: `List` is a factory function and not a class, and does not use the
+   * `new` keyword during construction.
+   *
+   * <!-- runkit:activate -->
    * ```js
    * const { List, Set } = require('immutable')
    *
@@ -438,6 +203,9 @@ declare module Immutable {
      * If `index` larger than `size`, the returned List's `size` will be large
      * enough to include the `index`.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
      * ```js
      * const originalList = List([ 0 ]);
      * // List [ 0 ]
@@ -468,10 +236,16 @@ declare module Immutable {
      *
      * Note: `delete` cannot be safely used in IE8
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
      * ```js
      * List([ 0, 1, 2, 3, 4 ]).delete(0);
      * // List [ 1, 2, 3, 4 ]
      * ```
+     *
+     * Since `delete()` re-indexes values, it produces a complete copy, which
+     * has `O(N)` complexity.
      *
      * Note: `delete` *cannot* be used in `withMutations`.
      *
@@ -486,18 +260,27 @@ declare module Immutable {
      *
      * This is synonymous with `list.splice(index, 0, value)`.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
      * ```js
      * List([ 0, 1, 2, 3, 4 ]).insert(6, 5)
      * // List [ 0, 1, 2, 3, 4, 5 ]
      * ```
+     *
+     * Since `insert()` re-indexes values, it produces a complete copy, which
+     * has `O(N)` complexity.
      *
      * Note: `insert` *cannot* be used in `withMutations`.
      */
     insert(index: number, value: T): List<T>;
 
     /**
-     * Returns a new List with 0 size and no values.
+     * Returns a new List with 0 size and no values in constant time.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
      * ```js
      * List([ 1, 2, 3, 4 ]).clear()
      * // List []
@@ -511,6 +294,9 @@ declare module Immutable {
      * Returns a new List with the provided `values` appended, starting at this
      * List's `size`.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
      * ```js
      * List([ 1, 2, 3, 4 ]).push(5)
      * // List [ 1, 2, 3, 4, 5 ]
@@ -541,6 +327,9 @@ declare module Immutable {
      * Returns a new List with the provided `values` prepended, shifting other
      * values ahead to higher indices.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
      * ```js
      * List([ 2, 3, 4]).unshift(1);
      * // List [ 1, 2, 3, 4 ]
@@ -558,6 +347,9 @@ declare module Immutable {
      * List rather than the removed value. Use `first()` to get the first
      * value in this List.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
      * ```js
      * List([ 0, 1, 2, 3, 4 ]).shift();
      * // List [ 1, 2, 3, 4 ]
@@ -576,6 +368,9 @@ declare module Immutable {
      * `index` may be a negative number, which indexes back from the end of the
      * List. `v.update(-1)` updates the last item in the List.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
      * ```js
      * const list = List([ 'a', 'b', 'c' ])
      * const result = list.update(2, val => val.toUpperCase())
@@ -587,6 +382,9 @@ declare module Immutable {
      *
      * For example, to sum a List after mapping and filtering:
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
      * ```js
      * function sum(collection) {
      *   return collection.reduce((sum, x) => sum + x, 0)
@@ -606,39 +404,6 @@ declare module Immutable {
     update(index: number, notSetValue: T, updater: (value: T) => T): this;
     update(index: number, updater: (value: T) => T): this;
     update<R>(updater: (value: this) => R): R;
-
-    /**
-     * Note: `merge` can be used in `withMutations`.
-     *
-     * @see `Map#merge`
-     */
-    merge(...collections: Array<Collection.Indexed<T> | Array<T>>): this;
-
-    /**
-     * Note: `mergeWith` can be used in `withMutations`.
-     *
-     * @see `Map#mergeWith`
-     */
-    mergeWith(
-      merger: (oldVal: T, newVal: T, key: number) => T,
-      ...collections: Array<Collection.Indexed<T> | Array<T>>
-    ): this;
-
-    /**
-     * Note: `mergeDeep` can be used in `withMutations`.
-     *
-     * @see `Map#mergeDeep`
-     */
-    mergeDeep(...collections: Array<Collection.Indexed<T> | Array<T>>): this;
-
-    /**
-     * Note: `mergeDeepWith` can be used in `withMutations`.
-     * @see `Map#mergeDeepWith`
-     */
-    mergeDeepWith(
-      merger: (oldVal: T, newVal: T, key: number) => T,
-      ...collections: Array<Collection.Indexed<T> | Array<T>>
-    ): this;
 
     /**
      * Returns a new List with size `size`. If `size` is less than this
@@ -662,11 +427,24 @@ declare module Immutable {
      * Index numbers are used as keys to determine the path to follow in
      * the List.
      *
+     * <!-- runkit:activate -->
      * ```js
-     * const { List } = require('immutable');
+     * const { List } = require('immutable')
      * const list = List([ 0, 1, 2, List([ 3, 4 ])])
      * list.setIn([3, 0], 999);
      * // List [ 0, 1, 2, List [ 999, 4 ] ]
+     * ```
+     *
+     * Plain JavaScript Object or Arrays may be nested within an Immutable.js
+     * Collection, and setIn() can update those values as well, treating them
+     * immutably by creating new copies of those values with the changes applied.
+     *
+     * <!-- runkit:activate -->
+     * ```js
+     * const { List } = require('immutable')
+     * const list = List([ 0, 1, 2, { plain: 'object' }])
+     * list.setIn([3, 'plain'], 'value');
+     * // List([ 0, 1, 2, { plain: 'value' }])
      * ```
      *
      * Note: `setIn` can be used in `withMutations`.
@@ -677,11 +455,24 @@ declare module Immutable {
      * Returns a new List having removed the value at this `keyPath`. If any
      * keys in `keyPath` do not exist, no change will occur.
      *
+     * <!-- runkit:activate -->
      * ```js
-     * const { List } = require('immutable');
+     * const { List } = require('immutable')
      * const list = List([ 0, 1, 2, List([ 3, 4 ])])
      * list.deleteIn([3, 0]);
      * // List [ 0, 1, 2, List [ 4 ] ]
+     * ```
+     *
+     * Plain JavaScript Object or Arrays may be nested within an Immutable.js
+     * Collection, and removeIn() can update those values as well, treating them
+     * immutably by creating new copies of those values with the changes applied.
+     *
+     * <!-- runkit:activate -->
+     * ```js
+     * const { List } = require('immutable')
+     * const list = List([ 0, 1, 2, { plain: 'object' }])
+     * list.removeIn([3, 'plain']);
+     * // List([ 0, 1, 2, {}])
      * ```
      *
      * Note: `deleteIn` *cannot* be safely used in `withMutations`.
@@ -736,6 +527,11 @@ declare module Immutable {
     asMutable(): this;
 
     /**
+     * @see `Map#wasAltered`
+     */
+    wasAltered(): boolean;
+
+    /**
      * @see `Map#asImmutable`
      */
     asImmutable(): this;
@@ -744,20 +540,25 @@ declare module Immutable {
 
     /**
      * Returns a new List with other values or collections concatenated to this one.
+     *
+     * Note: `concat` can be used in `withMutations`.
+     *
+     * @alias merge
      */
     concat<C>(...valuesOrCollections: Array<Iterable<C> | C>): List<T | C>;
+    merge<C>(...collections: Array<Iterable<C>>): List<T | C>;
 
     /**
      * Returns a new List with values passed through a
      * `mapper` function.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
      * ```js
      * List([ 1, 2 ]).map(x => 10 * x)
      * // List [ 10, 20 ]
      * ```
-     *
-     * Note: `map()` always returns a new instance, even if it produced the same
-     * value at every step.
      */
     map<M>(
       mapper: (value: T, key: number, iter: this) => M,
@@ -791,22 +592,53 @@ declare module Immutable {
     ): this;
 
     /**
-     * Returns a List "zipped" with the provided collections.
+     * Returns a List "zipped" with the provided collection.
      *
      * Like `zipWith`, but using the default `zipper`: creating an `Array`.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
      * ```js
      * const a = List([ 1, 2, 3 ]);
      * const b = List([ 4, 5, 6 ]);
      * const c = a.zip(b); // List [ [ 1, 4 ], [ 2, 5 ], [ 3, 6 ] ]
      * ```
      */
+    zip<U>(other: Collection<any, U>): List<[T,U]>;
+    zip<U,V>(other: Collection<any, U>, other2: Collection<any,V>): List<[T,U,V]>;
     zip(...collections: Array<Collection<any, any>>): List<any>;
+
+    /**
+     * Returns a List "zipped" with the provided collections.
+     *
+     * Unlike `zip`, `zipAll` continues zipping until the longest collection is
+     * exhausted. Missing values from shorter collections are filled with `undefined`.
+     *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
+     * ```js
+     * const a = List([ 1, 2 ]);
+     * const b = List([ 3, 4, 5 ]);
+     * const c = a.zipAll(b); // List [ [ 1, 3 ], [ 2, 4 ], [ undefined, 5 ] ]
+     * ```
+     *
+     * Note: Since zipAll will return a collection as large as the largest
+     * input, some results may contain undefined values. TypeScript cannot
+     * account for these without cases (as of v2.5).
+     */
+    zipAll<U>(other: Collection<any, U>): List<[T,U]>;
+    zipAll<U,V>(other: Collection<any, U>, other2: Collection<any,V>): List<[T,U,V]>;
+    zipAll(...collections: Array<Collection<any, any>>): List<any>;
 
     /**
      * Returns a List "zipped" with the provided collections by using a
      * custom `zipper` function.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { List } = require('immutable');" }
+     * -->
      * ```js
      * const a = List([ 1, 2, 3 ]);
      * const b = List([ 4, 5, 6 ]);
@@ -844,6 +676,7 @@ declare module Immutable {
    * Immutable collections are treated as values, any Immutable collection may
    * be used as a key.
    *
+   * <!-- runkit:activate -->
    * ```js
    * const { Map, List } = require('immutable');
    * Map().set(List([ 1 ]), 'listofone').get(List([ 1 ]));
@@ -861,6 +694,7 @@ declare module Immutable {
     /**
      * True if the provided value is a Map
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * Map.isMap({}) // false
@@ -872,6 +706,7 @@ declare module Immutable {
     /**
      * Creates a new Map from alternating keys and values
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * Map.of(
@@ -893,6 +728,10 @@ declare module Immutable {
    * Created with the same key value pairs as the provided Collection.Keyed or
    * JavaScript Object or expects a Collection of [K, V] tuple entries.
    *
+   * Note: `Map` is a factory function and not a class, and does not use the
+   * `new` keyword during construction.
+   *
+   * <!-- runkit:activate -->
    * ```js
    * const { Map } = require('immutable')
    * Map({ key: "value" })
@@ -903,15 +742,16 @@ declare module Immutable {
    * JavaScript Object properties are always strings, even if written in a
    * quote-less shorthand, while Immutable Maps accept keys of any type.
    *
+   * <!-- runkit:activate
+   *      { "preamble": "const { Map } = require('immutable');" }
+   * -->
    * ```js
    * let obj = { 1: "one" }
    * Object.keys(obj) // [ "1" ]
-   * obj["1"] // "one"
-   * obj[1]   // "one"
+   * assert.equal(obj["1"], obj[1]) // "one" === "one"
    *
    * let map = Map(obj)
-   * map.get("1") // "one"
-   * map.get(1)   // undefined
+   * assert.notEqual(map.get("1"), map.get(1)) // "one" !== undefined
    * ```
    *
    * Property access for JavaScript Objects first converts the key to a string,
@@ -919,7 +759,6 @@ declare module Immutable {
    * not altered.
    */
   export function Map<K, V>(collection: Iterable<[K, V]>): Map<K, V>;
-  export function Map<T>(collection: Iterable<Iterable<T>>): Map<T, T>;
   export function Map<V>(obj: {[key: string]: V}): Map<string, V>;
   export function Map<K, V>(): Map<K, V>;
   export function Map(): Map<any, any>;
@@ -937,6 +776,7 @@ declare module Immutable {
      * Returns a new Map also containing the new key, value pair. If an equivalent
      * key already exists in this Map, it will be replaced.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * const originalMap = Map()
@@ -961,6 +801,7 @@ declare module Immutable {
      * Note: `delete` cannot be safely used in IE8, but is provided to mirror
      * the ES6 collection API.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * const originalMap = Map({
@@ -982,6 +823,7 @@ declare module Immutable {
     /**
      * Returns a new Map which excludes the provided `keys`.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * const names = Map({ a: "Aaron", b: "Barry", c: "Connor" })
@@ -999,6 +841,7 @@ declare module Immutable {
     /**
      * Returns a new Map containing no keys or values.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * Map({ key: 'value' }).clear()
@@ -1015,6 +858,7 @@ declare module Immutable {
      *
      * Similar to: `map.set(key, updater(map.get(key)))`.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * const aMap = Map({ key: 'value' })
@@ -1026,6 +870,9 @@ declare module Immutable {
      * structure of data. For example, in order to `.push()` onto a nested `List`,
      * `update` and `push` can be used together:
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Map, List } = require('immutable');" }
+     * -->
      * ```js
      * const aMap = Map({ nestedList: List([ 1, 2, 3 ]) })
      * const newMap = aMap.update('nestedList', list => list.push(4))
@@ -1035,6 +882,9 @@ declare module Immutable {
      * When a `notSetValue` is provided, it is provided to the `updater`
      * function when the value at the key does not exist in the Map.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Map } = require('immutable');" }
+     * -->
      * ```js
      * const aMap = Map({ key: 'value' })
      * const newMap = aMap.update('noKey', 'no value', value => value + value)
@@ -1045,11 +895,14 @@ declare module Immutable {
      * with, then no change will occur. This is still true if `notSetValue`
      * is provided.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Map } = require('immutable');" }
+     * -->
      * ```js
      * const aMap = Map({ apples: 10 })
      * const newMap = aMap.update('oranges', 0, val => val)
      * // Map { "apples": 10 }
-     * assert(newMap === map);
+     * assert.strictEqual(newMap, map);
      * ```
      *
      * For code using ES2015 or later, using `notSetValue` is discourged in
@@ -1058,6 +911,9 @@ declare module Immutable {
      *
      * The previous example behaves differently when written with default values:
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Map } = require('immutable');" }
+     * -->
      * ```js
      * const aMap = Map({ apples: 10 })
      * const newMap = aMap.update('oranges', (val = 0) => val)
@@ -1067,6 +923,9 @@ declare module Immutable {
      * If no key is provided, then the `updater` function return value is
      * returned as well.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Map } = require('immutable');" }
+     * -->
      * ```js
      * const aMap = Map({ key: 'value' })
      * const result = aMap.update(aMap => aMap.get('key'))
@@ -1078,6 +937,9 @@ declare module Immutable {
      *
      * For example, to sum the values in a Map
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Map } = require('immutable');" }
+     * -->
      * ```js
      * function sum(collection) {
      *   return collection.reduce((sum, x) => sum + x, 0)
@@ -1101,12 +963,10 @@ declare module Immutable {
      * (or JS objects) into this Map. In other words, this takes each entry of
      * each collection and sets it on this Map.
      *
-     * If any of the values provided to `merge` are not Collection (would return
-     * false for `isCollection`) then they are deeply converted
-     * via `fromJS` before being merged. However, if the value is an
-     * Collection but includes non-collection JS objects or arrays, those nested
-     * values will be preserved.
+     * Note: Values provided to `merge` are shallowly converted before being
+     * merged. No nested values are altered.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * const one = Map({ a: 10, b: 20, c: 30 })
@@ -1116,14 +976,20 @@ declare module Immutable {
      * ```
      *
      * Note: `merge` can be used in `withMutations`.
+     *
+     * @alias concat
      */
-    merge(...collections: Array<Collection<K, V> | {[key: string]: V}>): this;
+    merge<KC, VC>(...collections: Array<Iterable<[KC, VC]>>): Map<K | KC, V | VC>;
+    merge<C>(...collections: Array<{[key: string]: C}>): Map<K | string, V | C>;
+    concat<KC, VC>(...collections: Array<Iterable<[KC, VC]>>): Map<K | KC, V | VC>;
+    concat<C>(...collections: Array<{[key: string]: C}>): Map<K | string, V | C>;
 
     /**
      * Like `merge()`, `mergeWith()` returns a new Map resulting from merging
      * the provided Collections (or JS objects) into this Map, but uses the
      * `merger` function for dealing with conflicts.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * const one = Map({ a: 10, b: 20, c: 30 })
@@ -1138,13 +1004,18 @@ declare module Immutable {
      */
     mergeWith(
       merger: (oldVal: V, newVal: V, key: K) => V,
-      ...collections: Array<Collection<K, V> | {[key: string]: V}>
+      ...collections: Array<Iterable<[K, V]> | {[key: string]: V}>
     ): this;
 
     /**
      * Like `merge()`, but when two Collections conflict, it merges them as well,
      * recursing deeply through the nested data.
      *
+     * Note: Values provided to `merge` are shallowly converted before being
+     * merged. No nested values are altered unless they will also be merged at
+     * a deeper level.
+     *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * const one = Map({ a: Map({ x: 10, y: 10 }), b: Map({ x: 20, y: 50 }) })
@@ -1159,12 +1030,13 @@ declare module Immutable {
      *
      * Note: `mergeDeep` can be used in `withMutations`.
      */
-    mergeDeep(...collections: Array<Collection<K, V> | {[key: string]: V}>): this;
+    mergeDeep(...collections: Array<Iterable<[K, V]> | {[key: string]: V}>): this;
 
     /**
      * Like `mergeDeep()`, but when two non-Collections conflict, it uses the
      * `merger` function to determine the resulting value.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * const one = Map({ a: Map({ x: 10, y: 10 }), b: Map({ x: 20, y: 50 }) })
@@ -1180,8 +1052,8 @@ declare module Immutable {
      * Note: `mergeDeepWith` can be used in `withMutations`.
      */
     mergeDeepWith(
-      merger: (oldVal: V, newVal: V, key: K) => V,
-      ...collections: Array<Collection<K, V> | {[key: string]: V}>
+      merger: (oldVal: any, newVal: any, key: any) => any,
+      ...collections: Array<Iterable<[K, V]> | {[key: string]: V}>
     ): this;
 
 
@@ -1191,6 +1063,7 @@ declare module Immutable {
      * Returns a new Map having set `value` at this `keyPath`. If any keys in
      * `keyPath` do not exist, a new immutable Map will be created at that key.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * const originalMap = Map({
@@ -1216,14 +1089,39 @@ declare module Immutable {
      * )
      * // Map {
      * //   "subObject": Map {
-     * //     "subKey": "ha ha!",
+     * //     "subKey": "subvalue",
      * //     "subSubObject": Map { "subSubKey": "ha ha ha!" }
      * //   }
      * // }
      * ```
      *
-     * If any key in the path exists but does not have a `.set()` method
-     * (such as Map and List), an error will be throw.
+     * Plain JavaScript Object or Arrays may be nested within an Immutable.js
+     * Collection, and setIn() can update those values as well, treating them
+     * immutably by creating new copies of those values with the changes applied.
+     *
+     * <!-- runkit:activate -->
+     * ```js
+     * const { Map } = require('immutable')
+     * const originalMap = Map({
+     *   subObject: {
+     *     subKey: 'subvalue',
+     *     subSubObject: {
+     *       subSubKey: 'subSubValue'
+     *     }
+     *   }
+     * })
+     *
+     * originalMap.setIn(['subObject', 'subKey'], 'ha ha!')
+     * // Map {
+     * //   "subObject": {
+     * //     subKey: "ha ha!",
+     * //     subSubObject: { subSubKey: "subSubValue" }
+     * //   }
+     * // }
+     * ```
+     *
+     * If any key in the path exists but cannot be updated (such as a primitive
+     * like number or a custom Object like Date), an error will be thrown.
      *
      * Note: `setIn` can be used in `withMutations`.
      */
@@ -1248,6 +1146,7 @@ declare module Immutable {
      * structure of data. For example, in order to `.push()` onto a nested `List`,
      * `updateIn` and `push` can be used together:
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map, List } = require('immutable')
      * const map = Map({ inMap: Map({ inList: List([ 1, 2, 3 ]) }) })
@@ -1260,6 +1159,9 @@ declare module Immutable {
      * value, the `updater` function will be called with `notSetValue`, if
      * provided, otherwise `undefined`.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Map } = require('immutable')" }
+     * -->
      * ```js
      * const map = Map({ a: Map({ b: Map({ c: 10 }) }) })
      * const newMap = map.updateIn(['a', 'b', 'c'], val => val * 2)
@@ -1269,11 +1171,14 @@ declare module Immutable {
      * If the `updater` function returns the same value it was called with, then
      * no change will occur. This is still true if `notSetValue` is provided.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Map } = require('immutable')" }
+     * -->
      * ```js
      * const map = Map({ a: Map({ b: Map({ c: 10 }) }) })
      * const newMap = map.updateIn(['a', 'b', 'x'], 100, val => val)
      * // Map { "a": Map { "b": Map { "c": 10 } } }
-     * assert(newMap === map)
+     * assert.strictEqual(newMap, aMap)
      * ```
      *
      * For code using ES2015 or later, using `notSetValue` is discourged in
@@ -1282,14 +1187,32 @@ declare module Immutable {
      *
      * The previous example behaves differently when written with default values:
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Map } = require('immutable')" }
+     * -->
      * ```js
      * const map = Map({ a: Map({ b: Map({ c: 10 }) }) })
      * const newMap = map.updateIn(['a', 'b', 'x'], (val = 100) => val)
      * // Map { "a": Map { "b": Map { "c": 10, "x": 100 } } }
      * ```
      *
-     * If any key in the path exists but does not have a .set() method (such as
-     * Map and List), an error will be thrown.
+     * Plain JavaScript Object or Arrays may be nested within an Immutable.js
+     * Collection, and updateIn() can update those values as well, treating them
+     * immutably by creating new copies of those values with the changes applied.
+     *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Map } = require('immutable')" }
+     * -->
+     * ```js
+     * const map = Map({ a: { b: { c: 10 } } })
+     * const newMap = map.updateIn(['a', 'b', 'c'], val => val * 2)
+     * // Map { "a": { b: { c: 20 } } }
+     * ```
+     *
+     * If any key in the path exists but cannot be updated (such as a primitive
+     * like number or a custom Object like Date), an error will be thrown.
+     *
+     * Note: `updateIn` can be used in `withMutations`.
      */
     updateIn(keyPath: Iterable<any>, notSetValue: any, updater: (value: any) => any): this;
     updateIn(keyPath: Iterable<any>, updater: (value: any) => any): this;
@@ -1337,14 +1260,15 @@ declare module Immutable {
      *
      * As an example, this results in the creation of 2, not 4, new Maps:
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * const map1 = Map()
      * const map2 = map1.withMutations(map => {
      *   map.set('a', 1).set('b', 2).set('c', 3)
      * })
-     * assert(map1.size === 0)
-     * assert(map2.size === 3)
+     * assert.equal(map1.size, 0)
+     * assert.equal(map2.size, 3)
      * ```
      *
      * Note: Not all methods can be used on a mutable collection or within
@@ -1358,31 +1282,44 @@ declare module Immutable {
      * a mutable copy of this collection. Mutable copies *always* return `this`,
      * and thus shouldn't be used for equality. Your function should never return
      * a mutable copy of a collection, only use it internally to create a new
-     * collection. If possible, use `withMutations` as it provides an easier to
-     * use API.
+     * collection.
+     *
+     * If possible, use `withMutations` to work with temporary mutable copies as
+     * it provides an easier to use API and considers many common optimizations.
      *
      * Note: if the collection is already mutable, `asMutable` returns itself.
      *
      * Note: Not all methods can be used on a mutable collection or within
      * `withMutations`! Read the documentation for each method to see if it
      * is safe to use in `withMutations`.
+     *
+     * @see `Map#asImmutable`
      */
     asMutable(): this;
 
     /**
+     * Returns true if this is a mutable copy (see `asMutable()`) and mutative
+     * alterations have been applied.
+     *
+     * @see `Map#asMutable`
+     */
+    wasAltered(): boolean;
+
+    /**
      * The yin to `asMutable`'s yang. Because it applies to mutable collections,
-     * this operation is *mutable* and returns itself. Once performed, the mutable
-     * copy has become immutable and can be safely returned from a function.
+     * this operation is *mutable* and may return itself (though may not
+     * return itself, i.e. if the result is an empty collection). Once
+     * performed, the original mutable copy must no longer be mutated since it
+     * may be the immutable result.
+     *
+     * If possible, use `withMutations` to work with temporary mutable copies as
+     * it provides an easier to use API and considers many common optimizations.
+     *
+     * @see `Map#asMutable`
      */
     asImmutable(): this;
 
     // Sequence algorithms
-
-    /**
-     * Returns a new Map with other collections concatenated to this one.
-     */
-    concat<KC, VC>(...collections: Array<Iterable<[KC, VC]>>): Map<K | KC, V | VC>;
-    concat<C>(...collections: Array<{[key: string]: C}>): Map<K | string, V | C>;
 
     /**
      * Returns a new Map with values passed through a
@@ -1390,9 +1327,6 @@ declare module Immutable {
      *
      *     Map({ a: 1, b: 2 }).map(x => 10 * x)
      *     // Map { a: 10, b: 20 }
-     *
-     * Note: `map()` always returns a new instance, even if it produced the same
-     * value at every step.
      */
     map<M>(
       mapper: (value: V, key: K, iter: this) => M,
@@ -1440,6 +1374,11 @@ declare module Immutable {
       predicate: (value: V, key: K, iter: this) => any,
       context?: any
     ): this;
+
+    /**
+     * @see Collection.Keyed.flip
+     */
+    flip(): Map<V, K>;
   }
 
 
@@ -1475,9 +1414,10 @@ declare module Immutable {
    *     let newOrderedMap = OrderedMap({key: "value"})
    *     let newOrderedMap = OrderedMap([["key", "value"]])
    *
+   * Note: `OrderedMap` is a factory function and not a class, and does not use
+   * the `new` keyword during construction.
    */
   export function OrderedMap<K, V>(collection: Iterable<[K, V]>): OrderedMap<K, V>;
-  export function OrderedMap<T>(collection: Iterable<Iterable<T>>): OrderedMap<T, T>;
   export function OrderedMap<V>(obj: {[key: string]: V}): OrderedMap<string, V>;
   export function OrderedMap<K, V>(): OrderedMap<K, V>;
   export function OrderedMap(): OrderedMap<any, any>;
@@ -1489,13 +1429,54 @@ declare module Immutable {
      */
     readonly size: number;
 
-    // Sequence algorithms
+    /**
+     * Returns a new OrderedMap also containing the new key, value pair. If an
+     * equivalent key already exists in this OrderedMap, it will be replaced
+     * while maintaining the existing order.
+     *
+     * <!-- runkit:activate -->
+     * ```js
+     * const { OrderedMap } = require('immutable')
+     * const originalMap = OrderedMap({a:1, b:1, c:1})
+     * const updatedMap = originalMap.set('b', 2)
+     *
+     * originalMap
+     * // OrderedMap {a: 1, b: 1, c: 1}
+     * updatedMap
+     * // OrderedMap {a: 1, b: 2, c: 1}
+     * ```
+     *
+     * Note: `set` can be used in `withMutations`.
+     */
+    set(key: K, value: V): this;
 
     /**
-     * Returns a new OrderedMap with other collections concatenated to this one.
+     * Returns a new OrderedMap resulting from merging the provided Collections
+     * (or JS objects) into this OrderedMap. In other words, this takes each
+     * entry of each collection and sets it on this OrderedMap.
+     *
+     * Note: Values provided to `merge` are shallowly converted before being
+     * merged. No nested values are altered.
+     *
+     * <!-- runkit:activate -->
+     * ```js
+     * const { OrderedMap } = require('immutable')
+     * const one = OrderedMap({ a: 10, b: 20, c: 30 })
+     * const two = OrderedMap({ b: 40, a: 50, d: 60 })
+     * one.merge(two) // OrderedMap { "a": 50, "b": 40, "c": 30, "d": 60 }
+     * two.merge(one) // OrderedMap { "b": 20, "a": 10, "d": 60, "c": 30 }
+     * ```
+     *
+     * Note: `merge` can be used in `withMutations`.
+     *
+     * @alias concat
      */
+    merge<KC, VC>(...collections: Array<Iterable<[KC, VC]>>): OrderedMap<K | KC, V | VC>;
+    merge<C>(...collections: Array<{[key: string]: C}>): OrderedMap<K | string, V | C>;
     concat<KC, VC>(...collections: Array<Iterable<[KC, VC]>>): OrderedMap<K | KC, V | VC>;
     concat<C>(...collections: Array<{[key: string]: C}>): OrderedMap<K | string, V | C>;
+
+    // Sequence algorithms
 
     /**
      * Returns a new OrderedMap with values passed through a
@@ -1553,6 +1534,11 @@ declare module Immutable {
       predicate: (value: V, key: K, iter: this) => any,
       context?: any
     ): this;
+
+    /**
+     * @see Collection.Keyed.flip
+     */
+    flip(): OrderedMap<V, K>;
   }
 
 
@@ -1606,7 +1592,7 @@ declare module Immutable {
      * collection of other sets.
      *
      * ```js
-     * * const { Set } = require('immutable')
+     * const { Set } = require('immutable')
      * const unioned = Set.union([
      *   Set([ 'a', 'b', 'c' ])
      *   Set([ 'c', 'a', 't' ])
@@ -1620,6 +1606,9 @@ declare module Immutable {
   /**
    * Create a new immutable Set containing the values of the provided
    * collection-like.
+   *
+   * Note: `Set` is a factory function and not a class, and does not use the
+   * `new` keyword during construction.
    */
   export function Set(): Set<any>;
   export function Set<T>(): Set<T>;
@@ -1667,9 +1656,11 @@ declare module Immutable {
      *
      * Note: `union` can be used in `withMutations`.
      * @alias merge
+     * @alias concat
      */
-    union(...collections: Array<Collection<any, T> | Array<T>>): this;
-    merge(...collections: Array<Collection<any, T> | Array<T>>): this;
+    union<C>(...collections: Array<Iterable<C>>): Set<T | C>;
+    merge<C>(...collections: Array<Iterable<C>>): Set<T | C>;
+    concat<C>(...collections: Array<Iterable<C>>): Set<T | C>;
 
     /**
      * Returns a Set which has removed any values not also contained
@@ -1677,14 +1668,21 @@ declare module Immutable {
      *
      * Note: `intersect` can be used in `withMutations`.
      */
-    intersect(...collections: Array<Collection<any, T> | Array<T>>): this;
+    intersect(...collections: Array<Iterable<T>>): this;
 
     /**
      * Returns a Set excluding any values contained within `collections`.
      *
+     * <!-- runkit:activate -->
+     * ```js
+     * const { OrderedSet } = require('immutable')
+     * OrderedSet([ 1, 2, 3 ]).subtract([1, 3])
+     * // OrderedSet [2]
+     * ```
+     *
      * Note: `subtract` can be used in `withMutations`.
      */
-    subtract(...collections: Array<Collection<any, T> | Array<T>>): this;
+    subtract(...collections: Array<Iterable<T>>): this;
 
 
     // Transient changes
@@ -1708,6 +1706,11 @@ declare module Immutable {
     asMutable(): this;
 
     /**
+     * @see `Map#wasAltered`
+     */
+    wasAltered(): boolean;
+
+    /**
      * @see `Map#asImmutable`
      */
     asImmutable(): this;
@@ -1715,19 +1718,11 @@ declare module Immutable {
     // Sequence algorithms
 
     /**
-     * Returns a new Set with other collections concatenated to this one.
-     */
-    concat<C>(...valuesOrCollections: Array<Iterable<C> | C>): Set<T | C>;
-
-    /**
      * Returns a new Set with values passed through a
      * `mapper` function.
      *
      *     Set([1,2]).map(x => 10 * x)
      *     // Set [10,20]
-     *
-     * Note: `map()` always returns a new instance, even if it produced the same
-     * value at every step.
      */
     map<M>(
       mapper: (value: T, key: T, iter: this) => M,
@@ -1795,6 +1790,9 @@ declare module Immutable {
   /**
    * Create a new immutable OrderedSet containing the values of the provided
    * collection-like.
+   *
+   * Note: `OrderedSet` is a factory function and not a class, and does not use
+   * the `new` keyword during construction.
    */
   export function OrderedSet(): OrderedSet<any>;
   export function OrderedSet<T>(): OrderedSet<T>;
@@ -1807,12 +1805,19 @@ declare module Immutable {
      */
     readonly size: number;
 
-    // Sequence algorithms
-
     /**
-     * Returns a new OrderedSet with other collections concatenated to this one.
+     * Returns an OrderedSet including any value from `collections` that does
+     * not already exist in this OrderedSet.
+     *
+     * Note: `union` can be used in `withMutations`.
+     * @alias merge
+     * @alias concat
      */
-    concat<C>(...valuesOrCollections: Array<Iterable<C> | C>): OrderedSet<T | C>;
+    union<C>(...collections: Array<Iterable<C>>): OrderedSet<T | C>;
+    merge<C>(...collections: Array<Iterable<C>>): OrderedSet<T | C>;
+    concat<C>(...collections: Array<Iterable<C>>): OrderedSet<T | C>;
+
+    // Sequence algorithms
 
     /**
      * Returns a new Set with values passed through a
@@ -1820,9 +1825,6 @@ declare module Immutable {
      *
      *     OrderedSet([ 1, 2 ]).map(x => 10 * x)
      *     // OrderedSet [10, 20]
-     *
-     * Note: `map()` always returns a new instance, even if it produced the same
-     * value at every step.
      */
     map<M>(
       mapper: (value: T, key: T, iter: this) => M,
@@ -1859,8 +1861,6 @@ declare module Immutable {
      * Returns an OrderedSet of the same type "zipped" with the provided
      * collections.
      *
-     * @see IndexedIterator.zip
-     *
      * Like `zipWith`, but using the default `zipper`: creating an `Array`.
      *
      * ```js
@@ -1870,13 +1870,36 @@ declare module Immutable {
      * // OrderedSet [ [ 1, 4 ], [ 2, 5 ], [ 3, 6 ] ]
      * ```
      */
+    zip<U>(other: Collection<any, U>): OrderedSet<[T,U]>;
+    zip<U,V>(other1: Collection<any, U>, other2: Collection<any, V>): OrderedSet<[T,U,V]>;
     zip(...collections: Array<Collection<any, any>>): OrderedSet<any>;
+
+    /**
+     * Returns a OrderedSet of the same type "zipped" with the provided
+     * collections.
+     *
+     * Unlike `zip`, `zipAll` continues zipping until the longest collection is
+     * exhausted. Missing values from shorter collections are filled with `undefined`.
+     *
+     * ```js
+     * const a = OrderedSet([ 1, 2 ]);
+     * const b = OrderedSet([ 3, 4, 5 ]);
+     * const c = a.zipAll(b); // OrderedSet [ [ 1, 3 ], [ 2, 4 ], [ undefined, 5 ] ]
+     * ```
+     *
+     * Note: Since zipAll will return a collection as large as the largest
+     * input, some results may contain undefined values. TypeScript cannot
+     * account for these without cases (as of v2.5).
+     */
+    zipAll<U>(other: Collection<any, U>): OrderedSet<[T,U]>;
+    zipAll<U,V>(other1: Collection<any, U>, other2: Collection<any, V>): OrderedSet<[T,U,V]>;
+    zipAll(...collections: Array<Collection<any, any>>): OrderedSet<any>;
 
     /**
      * Returns an OrderedSet of the same type "zipped" with the provided
      * collections by using a custom `zipper` function.
      *
-     * @see IndexedIterator.zipWith
+     * @see Seq.Indexed.zipWith
      */
     zipWith<U, Z>(
       zipper: (value: T, otherValue: U) => Z,
@@ -1927,6 +1950,9 @@ declare module Immutable {
    *
    * The iteration order of the provided collection is preserved in the
    * resulting `Stack`.
+   *
+   * Note: `Stack` is a factory function and not a class, and does not use the
+   * `new` keyword during construction.
    */
   export function Stack(): Stack<any>;
   export function Stack<T>(): Stack<T>;
@@ -2022,6 +2048,11 @@ declare module Immutable {
     asMutable(): this;
 
     /**
+     * @see `Map#wasAltered`
+     */
+    wasAltered(): boolean;
+
+    /**
      * @see `Map#asImmutable`
      */
     asImmutable(): this;
@@ -2054,7 +2085,7 @@ declare module Immutable {
      * Similar to `stack.map(...).flatten(true)`.
      */
     flatMap<M>(
-      mapper: (value: T, key: number, iter: this) => M,
+      mapper: (value: T, key: number, iter: this) => Iterable<M>,
       context?: any
     ): Stack<M>;
 
@@ -2085,7 +2116,29 @@ declare module Immutable {
      * const c = a.zip(b); // Stack [ [ 1, 4 ], [ 2, 5 ], [ 3, 6 ] ]
      * ```
      */
+    zip<U>(other: Collection<any, U>): Stack<[T,U]>;
+    zip<U,V>(other: Collection<any, U>, other2: Collection<any,V>): Stack<[T,U,V]>;
     zip(...collections: Array<Collection<any, any>>): Stack<any>;
+
+    /**
+     * Returns a Stack "zipped" with the provided collections.
+     *
+     * Unlike `zip`, `zipAll` continues zipping until the longest collection is
+     * exhausted. Missing values from shorter collections are filled with `undefined`.
+     *
+     * ```js
+     * const a = Stack([ 1, 2 ]);
+     * const b = Stack([ 3, 4, 5 ]);
+     * const c = a.zipAll(b); // Stack [ [ 1, 3 ], [ 2, 4 ], [ undefined, 5 ] ]
+     * ```
+     *
+     * Note: Since zipAll will return a collection as large as the largest
+     * input, some results may contain undefined values. TypeScript cannot
+     * account for these without cases (as of v2.5).
+     */
+    zipAll<U>(other: Collection<any, U>): Stack<[T,U]>;
+    zipAll<U,V>(other: Collection<any, U>, other2: Collection<any,V>): Stack<[T,U,V]>;
+    zipAll(...collections: Array<Collection<any, any>>): Stack<any>;
 
     /**
      * Returns a Stack "zipped" with the provided collections by using a
@@ -2119,6 +2172,9 @@ declare module Immutable {
    * (exclusive), by `step`, where `start` defaults to 0, `step` to 1, and `end` to
    * infinity. When `start` is equal to `end`, returns empty range.
    *
+   * Note: `Range` is a factory function and not a class, and does not use the
+   * `new` keyword during construction.
+   *
    * ```js
    * const { Range } = require('immutable')
    * Range() // [ 0, 1, 2, 3, ... ]
@@ -2136,6 +2192,9 @@ declare module Immutable {
    * Returns a Seq.Indexed of `value` repeated `times` times. When `times` is
    * not defined, returns an infinite `Seq` of `value`.
    *
+   * Note: `Repeat` is a factory function and not a class, and does not use the
+   * `new` keyword during construction.
+   *
    * ```js
    * const { Repeat } = require('immutable')
    * Repeat('foo') // [ 'foo', 'foo', 'foo', ... ]
@@ -2146,14 +2205,16 @@ declare module Immutable {
 
 
   /**
-   * Creates a new Class which produces Record instances. A record is similar to
-   * a JS object, but enforce a specific set of allowed string keys, and have
-   * default values.
+   * A record is similar to a JS object, but enforces a specific set of allowed
+   * string keys, and has default values.
+   *
+   * The `Record()` function produces new Record Factories, which when called
+   * create Record instances.
    *
    * ```js
    * const { Record } = require('immutable')
    * const ABRecord = Record({ a: 1, b: 2 })
-   * const myRecord = new ABRecord({ b: 3 })
+   * const myRecord = ABRecord({ b: 3 })
    * ```
    *
    * Records always have a value for the keys they define. `remove`ing a key
@@ -2174,7 +2235,7 @@ declare module Immutable {
    * ignored for this record.
    *
    * ```js
-   * const myRecord = new ABRecord({ b: 3, x: 10 })
+   * const myRecord = ABRecord({ b: 3, x: 10 })
    * myRecord.get('x') // undefined
    * ```
    *
@@ -2189,9 +2250,19 @@ declare module Immutable {
    * myRecord.b = 5 // throws Error
    * ```
    *
-   * Record Classes can be extended as well, allowing for custom methods on your
+   * Record Types can be extended as well, allowing for custom methods on your
    * Record. This is not a common pattern in functional environments, but is in
    * many JS programs.
+   *
+   * However Record Types are more restricted than typical JavaScript classes.
+   * They do not use a class constructor, which also means they cannot use
+   * class properties (since those are technically part of a constructor).
+   *
+   * While Record Types can be syntactically created with the JavaScript `class`
+   * form, the resulting Record function is actually a factory function, not a
+   * class constructor. Even though Record Types are not classes, JavaScript
+   * currently requires the use of `new` when creating new Record instances if
+   * they are defined as a `class`.
    *
    * ```
    * class ABRecord extends Record({ a: 1, b: 2 }) {
@@ -2203,13 +2274,103 @@ declare module Immutable {
    * var myRecord = new ABRecord({b: 3})
    * myRecord.getAB() // 4
    * ```
+   *
+   *
+   * **Flow Typing Records:**
+   *
+   * Immutable.js exports two Flow types designed to make it easier to use
+   * Records with flow typed code, `RecordOf<TProps>` and `RecordFactory<TProps>`.
+   *
+   * When defining a new kind of Record factory function, use a flow type that
+   * describes the values the record contains along with `RecordFactory<TProps>`.
+   * To type instances of the Record (which the factory function returns),
+   * use `RecordOf<TProps>`.
+   *
+   * Typically, new Record definitions will export both the Record factory
+   * function as well as the Record instance type for use in other code.
+   *
+   * ```js
+   * import type { RecordFactory, RecordOf } from 'immutable';
+   *
+   * // Use RecordFactory<TProps> for defining new Record factory functions.
+   * type Point3DProps = { x: number, y: number, z: number };
+   * const defaultValues: Point3DProps = { x: 0, y: 0, z: 0 };
+   * const makePoint3D: RecordFactory<Point3DProps> = Record(defaultValues);
+   * export makePoint3D;
+   *
+   * // Use RecordOf<T> for defining new instances of that Record.
+   * export type Point3D = RecordOf<Point3DProps>;
+   * const some3DPoint: Point3D = makePoint3D({ x: 10, y: 20, z: 30 });
+   * ```
+   *
+   * **Flow Typing Record Subclasses:**
+   *
+   * Records can be subclassed as a means to add additional methods to Record
+   * instances. This is generally discouraged in favor of a more functional API,
+   * since Subclasses have some minor overhead. However the ability to create
+   * a rich API on Record types can be quite valuable.
+   *
+   * When using Flow to type Subclasses, do not use `RecordFactory<TProps>`,
+   * instead apply the props type when subclassing:
+   *
+   * ```js
+   * type PersonProps = {name: string, age: number};
+   * const defaultValues: PersonProps = {name: 'Aristotle', age: 2400};
+   * const PersonRecord = Record(defaultValues);
+   * class Person extends PersonRecord<PersonProps> {
+   *   getName(): string {
+   *     return this.get('name')
+   *   }
+   *
+   *   setName(name: string): this {
+   *     return this.set('name', name);
+   *   }
+   * }
+   * ```
+   *
+   * **Choosing Records vs plain JavaScript objects**
+   *
+   * Records offer a persistently immutable alternative to plain JavaScript
+   * objects, however they're not required to be used within Immutable.js
+   * collections. In fact, the deep-access and deep-updating functions
+   * like `getIn()` and `setIn()` work with plain JavaScript Objects as well.
+   *
+   * Deciding to use Records or Objects in your application should be informed
+   * by the tradeoffs and relative benefits of each:
+   *
+   * - *Runtime immutability*: plain JS objects may be carefully treated as
+   *   immutable, however Record instances will *throw* if attempted to be
+   *   mutated directly. Records provide this additional guarantee, however at
+   *   some marginal runtime cost. While JS objects are mutable by nature, the
+   *   use of type-checking tools like [Flow](https://medium.com/@gcanti/immutability-with-flow-faa050a1aef4)
+   *   can help gain confidence in code written to favor immutability.
+   *
+   * - *Value equality*: Records use value equality when compared with `is()`
+   *   or `record.equals()`. That is, two Records with the same keys and values
+   *   are equal. Plain objects use *reference equality*. Two objects with the
+   *   same keys and values are not equal since they are different objects.
+   *   This is important to consider when using objects as keys in a `Map` or
+   *   values in a `Set`, which use equality when retrieving values.
+   *
+   * - *API methods*: Records have a full featured API, with methods like
+   *   `.getIn()`, and `.equals()`. These can make working with these values
+   *   easier, but comes at the cost of not allowing keys with those names.
+   *
+   * - *Default values*: Records provide default values for every key, which
+   *   can be useful when constructing Records with often unchanging values.
+   *   However default values can make using Flow and TypeScript more laborious.
+   *
+   * - *Serialization*: Records use a custom internal representation to
+   *   efficiently store and update their values. Converting to and from this
+   *   form isn't free. If converting Records to plain objects is common,
+   *   consider sticking with plain objects to begin with.
    */
   export module Record {
 
     /**
      * True if `maybeRecord` is an instance of a Record.
      */
-    export function isRecord(maybeRecord: any): maybeRecord is Record.Instance<any>;
+    export function isRecord(maybeRecord: any): maybeRecord is Record<any>;
 
     /**
      * Records allow passing a second parameter to supply a descriptive name
@@ -2228,137 +2389,231 @@ declare module Immutable {
      * Record.getDescriptiveName(me) // "Person"
      * ```
      */
-    export function getDescriptiveName(record: Instance<any>): string;
+    export function getDescriptiveName(record: Record<any>): string;
 
-    export interface Class<T extends Object> {
-      (values?: Partial<T> | Iterable<[string, any]>): Instance<T> & Readonly<T>;
-      new (values?: Partial<T> | Iterable<[string, any]>): Instance<T> & Readonly<T>;
+    /**
+     * A Record.Factory is created by the `Record()` function. Record instances
+     * are created by passing it some of the accepted values for that Record
+     * type:
+     *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Record } = require('immutable')" }
+     * -->
+     * ```js
+     * // makePerson is a Record Factory function
+     * const makePerson = Record({ name: null, favoriteColor: 'unknown' });
+     *
+     * // alan is a Record instance
+     * const alan = makePerson({ name: 'Alan' });
+     * ```
+     *
+     * Note that Record Factories return `Record<TProps> & Readonly<TProps>`,
+     * this allows use of both the Record instance API, and direct property
+     * access on the resulting instances:
+     *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Record } = require('immutable');const makePerson = Record({ name: null, favoriteColor: 'unknown' });const alan = makePerson({ name: 'Alan' });" }
+     * -->
+     * ```js
+     * // Use the Record API
+     * console.log('Record API: ' + alan.get('name'))
+     *
+     * // Or direct property access (Readonly)
+     * console.log('property access: ' + alan.name)
+     * ```
+     *
+     * **Flow Typing Records:**
+     *
+     * Use the `RecordFactory<TProps>` Flow type to get high quality type checking of
+     * Records:
+     *
+     * ```js
+     * import type { RecordFactory, RecordOf } from 'immutable';
+     *
+     * // Use RecordFactory<TProps> for defining new Record factory functions.
+     * type PersonProps = { name: ?string, favoriteColor: string };
+     * const makePerson: RecordFactory<PersonProps> = Record({ name: null, favoriteColor: 'unknown' });
+     *
+     * // Use RecordOf<T> for defining new instances of that Record.
+     * type Person = RecordOf<PersonProps>;
+     * const alan: Person = makePerson({ name: 'Alan' });
+     * ```
+     */
+    export module Factory {}
+
+    export interface Factory<TProps extends Object> {
+      (values?: Partial<TProps> | Iterable<[string, any]>): Record<TProps> & Readonly<TProps>;
+      new (values?: Partial<TProps> | Iterable<[string, any]>): Record<TProps> & Readonly<TProps>;
+
+      /**
+       * The name provided to `Record(values, name)` can be accessed with
+       * `displayName`.
+       */
+      displayName: string;
     }
 
-    export interface Instance<T extends Object> {
-
-      // Reading values
-
-      has(key: string): boolean;
-      get<K extends keyof T>(key: K): T[K];
-
-      // Reading deep values
-
-      hasIn(keyPath: Iterable<any>): boolean;
-      getIn(keyPath: Iterable<any>): any;
-
-      // Value equality
-
-      equals(other: any): boolean;
-      hashCode(): number;
-
-      // Persistent changes
-
-      set<K extends keyof T>(key: K, value: T[K]): this;
-      update<K extends keyof T>(key: K, updater: (value: T[K]) => T[K]): this;
-      merge(...collections: Array<Partial<T> | Iterable<[string, any]>>): this;
-      mergeDeep(...collections: Array<Partial<T> | Iterable<[string, any]>>): this;
-
-      mergeWith(
-        merger: (oldVal: any, newVal: any, key: keyof T) => any,
-        ...collections: Array<Partial<T> | Iterable<[string, any]>>
-      ): this;
-      mergeDeepWith(
-        merger: (oldVal: any, newVal: any, key: any) => any,
-        ...collections: Array<Partial<T> | Iterable<[string, any]>>
-      ): this;
-
-      /**
-       * Returns a new instance of this Record type with the value for the
-       * specific key set to its default value.
-       *
-       * @alias remove
-       */
-      delete<K extends keyof T>(key: K): this;
-      remove<K extends keyof T>(key: K): this;
-
-      /**
-       * Returns a new instance of this Record type with all values set
-       * to their default values.
-       */
-      clear(): this;
-
-      // Deep persistent changes
-
-      setIn(keyPath: Iterable<any>, value: any): this;
-      updateIn(keyPath: Iterable<any>, updater: (value: any) => any): this;
-      mergeIn(keyPath: Iterable<any>, ...collections: Array<any>): this;
-      mergeDeepIn(keyPath: Iterable<any>, ...collections: Array<any>): this;
-
-      /**
-       * @alias removeIn
-       */
-      deleteIn(keyPath: Iterable<any>): this;
-      removeIn(keyPath: Iterable<any>): this;
-
-      // Conversion to JavaScript types
-
-      /**
-       * Deeply converts this Record to equivalent native JavaScript Object.
-       */
-      toJS(): { [K in keyof T]: any };
-
-      /**
-       * Shallowly converts this Record to equivalent native JavaScript Object.
-       */
-      toJSON(): T;
-
-      /**
-       * Shallowly converts this Record to equivalent JavaScript Object.
-       */
-      toObject(): T;
-
-      // Transient changes
-
-      /**
-       * Note: Not all methods can be used on a mutable collection or within
-       * `withMutations`! Only `set` may be used mutatively.
-       *
-       * @see `Map#withMutations`
-       */
-      withMutations(mutator: (mutable: this) => any): this;
-
-      /**
-       * @see `Map#asMutable`
-       */
-      asMutable(): this;
-
-      /**
-       * @see `Map#asImmutable`
-       */
-      asImmutable(): this;
-
-      // Sequence algorithms
-
-      toSeq(): Seq.Keyed<keyof T, T[keyof T]>;
-
-      [Symbol.iterator](): IterableIterator<[keyof T, T[keyof T]]>;
-    }
+    export function Factory<TProps extends Object>(values?: Partial<TProps> | Iterable<[string, any]>): Record<TProps> & Readonly<TProps>;
   }
 
-  export function Record<T>(defaultValues: T, name?: string): Record.Class<T>;
+  /**
+   * Unlike other types in Immutable.js, the `Record()` function creates a new
+   * Record Factory, which is a function that creates Record instances.
+   *
+   * See above for examples of using `Record()`.
+   *
+   * Note: `Record` is a factory function and not a class, and does not use the
+   * `new` keyword during construction.
+   */
+  export function Record<TProps>(defaultValues: TProps, name?: string): Record.Factory<TProps>;
 
+  export interface Record<TProps extends Object> {
+
+    // Reading values
+
+    has(key: string): key is keyof TProps & string;
+
+    /**
+     * Returns the value associated with the provided key, which may be the
+     * default value defined when creating the Record factory function.
+     *
+     * If the requested key is not defined by this Record type, then
+     * notSetValue will be returned if provided. Note that this scenario would
+     * produce an error when using Flow or TypeScript.
+     */
+    get<K extends keyof TProps>(key: K, notSetValue?: any): TProps[K];
+    get<T>(key: string, notSetValue: T): T;
+
+    // Reading deep values
+
+    hasIn(keyPath: Iterable<any>): boolean;
+    getIn(keyPath: Iterable<any>): any;
+
+    // Value equality
+
+    equals(other: any): boolean;
+    hashCode(): number;
+
+    // Persistent changes
+
+    set<K extends keyof TProps>(key: K, value: TProps[K]): this;
+    update<K extends keyof TProps>(key: K, updater: (value: TProps[K]) => TProps[K]): this;
+    merge(...collections: Array<Partial<TProps> | Iterable<[string, any]>>): this;
+    mergeDeep(...collections: Array<Partial<TProps> | Iterable<[string, any]>>): this;
+
+    mergeWith(
+      merger: (oldVal: any, newVal: any, key: keyof TProps) => any,
+      ...collections: Array<Partial<TProps> | Iterable<[string, any]>>
+    ): this;
+    mergeDeepWith(
+      merger: (oldVal: any, newVal: any, key: any) => any,
+      ...collections: Array<Partial<TProps> | Iterable<[string, any]>>
+    ): this;
+
+    /**
+     * Returns a new instance of this Record type with the value for the
+     * specific key set to its default value.
+     *
+     * @alias remove
+     */
+    delete<K extends keyof TProps>(key: K): this;
+    remove<K extends keyof TProps>(key: K): this;
+
+    /**
+     * Returns a new instance of this Record type with all values set
+     * to their default values.
+     */
+    clear(): this;
+
+    // Deep persistent changes
+
+    setIn(keyPath: Iterable<any>, value: any): this;
+    updateIn(keyPath: Iterable<any>, updater: (value: any) => any): this;
+    mergeIn(keyPath: Iterable<any>, ...collections: Array<any>): this;
+    mergeDeepIn(keyPath: Iterable<any>, ...collections: Array<any>): this;
+
+    /**
+     * @alias removeIn
+     */
+    deleteIn(keyPath: Iterable<any>): this;
+    removeIn(keyPath: Iterable<any>): this;
+
+    // Conversion to JavaScript types
+
+    /**
+     * Deeply converts this Record to equivalent native JavaScript Object.
+     *
+     * Note: This method may not be overridden. Objects with custom
+     * serialization to plain JS may override toJSON() instead.
+     */
+    toJS(): { [K in keyof TProps]: any };
+
+    /**
+     * Shallowly converts this Record to equivalent native JavaScript Object.
+     */
+    toJSON(): TProps;
+
+    /**
+     * Shallowly converts this Record to equivalent JavaScript Object.
+     */
+    toObject(): TProps;
+
+    // Transient changes
+
+    /**
+     * Note: Not all methods can be used on a mutable collection or within
+     * `withMutations`! Only `set` may be used mutatively.
+     *
+     * @see `Map#withMutations`
+     */
+    withMutations(mutator: (mutable: this) => any): this;
+
+    /**
+     * @see `Map#asMutable`
+     */
+    asMutable(): this;
+
+    /**
+     * @see `Map#wasAltered`
+     */
+    wasAltered(): boolean;
+
+    /**
+     * @see `Map#asImmutable`
+     */
+    asImmutable(): this;
+
+    // Sequence algorithms
+
+    toSeq(): Seq.Keyed<keyof TProps, TProps[keyof TProps]>;
+
+    [Symbol.iterator](): IterableIterator<[keyof TProps, TProps[keyof TProps]]>;
+  }
 
   /**
-   * Represents a sequence of values, but may not be backed by a concrete data
-   * structure.
+   * RecordOf<T> is used in TypeScript to define interfaces expecting an
+   * instance of record with type T.
+   *
+   * This is equivalent to an instance of a record created by a Record Factory.
+   */
+  export type RecordOf<TProps extends Object> = Record<TProps> &
+    Readonly<TProps>;
+
+  /**
+   * `Seq` describes a lazy operation, allowing them to efficiently chain
+   * use of all the higher-order collection methods (such as `map` and `filter`)
+   * by not creating intermediate collections.
    *
    * **Seq is immutable** — Once a Seq is created, it cannot be
    * changed, appended to, rearranged or otherwise modified. Instead, any
    * mutative method called on a `Seq` will return a new `Seq`.
    *
-   * **Seq is lazy** — Seq does as little work as necessary to respond to any
+   * **Seq is lazy** — `Seq` does as little work as necessary to respond to any
    * method call. Values are often created during iteration, including implicit
    * iteration when reducing or converting to a concrete data structure such as
    * a `List` or JavaScript `Array`.
    *
    * For example, the following performs no work, because the resulting
-   * Seq's values are never iterated:
+   * `Seq`'s values are never iterated:
    *
    * ```js
    * const { Seq } = require('immutable')
@@ -2367,27 +2622,38 @@ declare module Immutable {
    *   .map(x => x * x)
    * ```
    *
-   * Once the Seq is used, it performs only the work necessary. In this
-   * example, no intermediate data structures are ever created, filter is only
-   * called three times, and map is only called once:
+   * Once the `Seq` is used, it performs only the work necessary. In this
+   * example, no intermediate arrays are ever created, filter is called three
+   * times, and map is only called once:
    *
-   * ```
-   * oddSquares.get(1)); // 9
+   * ```js
+   * oddSquares.get(1); // 9
    * ```
    *
-   * Seq allows for the efficient chaining of operations,
-   * allowing for the expression of logic that can otherwise be very tedious:
+   * Any collection can be converted to a lazy Seq with `Seq()`.
    *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { Map } = require('immutable')
+   * const map = Map({ a: 1, b: 2, c: 3 })
+   * const lazySeq = Seq(map)
    * ```
-   * Seq({ a: 1, b: 1, c: 1})
+   *
+   * `Seq` allows for the efficient chaining of operations, allowing for the
+   * expression of logic that can otherwise be very tedious:
+   *
+   * ```js
+   * lazySeq
    *   .flip()
    *   .map(key => key.toUpperCase())
    *   .flip()
    * // Seq { A: 1, B: 1, C: 1 }
    * ```
    *
-   * As well as expressing logic that would otherwise be memory or time limited:
+   * As well as expressing logic that would otherwise seem memory or time
+   * limited, for example `Range` is a special kind of Lazy sequence.
    *
+   * <!-- runkit:activate -->
    * ```js
    * const { Range } = require('immutable')
    * Range(1, Infinity)
@@ -2412,12 +2678,7 @@ declare module Immutable {
      * True if `maybeSeq` is a Seq, it is not backed by a concrete
      * structure such as Map, List, or Set.
      */
-    function isSeq(maybeSeq: any): maybeSeq is Seq.Indexed<any> | Seq.Keyed<any, any>;
-
-    /**
-     * Returns a Seq of the values provided. Alias for `Seq.Indexed.of()`.
-     */
-    function of<T>(...values: Array<T>): Seq.Indexed<T>;
+    function isSeq(maybeSeq: any): maybeSeq is Seq.Indexed<any> | Seq.Keyed<any, any> | Seq.Set<any>;
 
 
     /**
@@ -2428,6 +2689,9 @@ declare module Immutable {
     /**
      * Always returns a Seq.Keyed, if input is not keyed, expects an
      * collection of [K, V] tuples.
+     *
+     * Note: `Seq.Keyed` is a conversion function and not a class, and does not
+     * use the `new` keyword during construction.
      */
     export function Keyed<K, V>(collection: Iterable<[K, V]>): Seq.Keyed<K, V>;
     export function Keyed<V>(obj: {[key: string]: V}): Seq.Keyed<string, V>;
@@ -2448,6 +2712,11 @@ declare module Immutable {
        * Converts keys to Strings.
        */
       toJSON(): { [key: string]: V };
+
+      /**
+       * Shallowly converts this collection to an Array.
+       */
+      toArray(): Array<[K, V]>;
 
       /**
        * Returns itself
@@ -2522,6 +2791,11 @@ declare module Immutable {
         predicate: (value: V, key: K, iter: this) => any,
         context?: any
       ): this;
+
+      /**
+       * @see Collection.Keyed.flip
+       */
+      flip(): Seq.Keyed<V, K>;
     }
 
 
@@ -2539,6 +2813,9 @@ declare module Immutable {
     /**
      * Always returns Seq.Indexed, discarding associated keys and
      * supplying incrementing indices.
+     *
+     * Note: `Seq.Indexed` is a conversion function and not a class, and does
+     * not use the `new` keyword during construction.
      */
     export function Indexed(): Seq.Indexed<any>;
     export function Indexed<T>(): Seq.Indexed<T>;
@@ -2554,6 +2831,11 @@ declare module Immutable {
        * Shallowly converts this Indexed Seq to equivalent native JavaScript Array.
        */
       toJSON(): Array<T>;
+
+      /**
+       * Shallowly converts this collection to an Array.
+       */
+      toArray(): Array<T>;
 
       /**
        * Returns itself
@@ -2620,7 +2902,25 @@ declare module Immutable {
        * const c = a.zip(b); // Seq [ [ 1, 4 ], [ 2, 5 ], [ 3, 6 ] ]
        * ```
        */
+      zip<U>(other: Collection<any, U>): Seq.Indexed<[T,U]>;
+      zip<U,V>(other: Collection<any, U>, other2: Collection<any, V>): Seq.Indexed<[T,U,V]>;
       zip(...collections: Array<Collection<any, any>>): Seq.Indexed<any>;
+
+      /**
+       * Returns a Seq "zipped" with the provided collections.
+       *
+       * Unlike `zip`, `zipAll` continues zipping until the longest collection is
+       * exhausted. Missing values from shorter collections are filled with `undefined`.
+       *
+       * ```js
+       * const a = Seq([ 1, 2 ]);
+       * const b = Seq([ 3, 4, 5 ]);
+       * const c = a.zipAll(b); // Seq [ [ 1, 3 ], [ 2, 4 ], [ undefined, 5 ] ]
+       * ```
+       */
+      zipAll<U>(other: Collection<any, U>): Seq.Indexed<[T,U]>;
+      zipAll<U,V>(other: Collection<any, U>, other2: Collection<any, V>): Seq.Indexed<[T,U,V]>;
+      zipAll(...collections: Array<Collection<any, any>>): Seq.Indexed<any>;
 
       /**
        * Returns a Seq "zipped" with the provided collections by using a
@@ -2665,6 +2965,9 @@ declare module Immutable {
 
     /**
      * Always returns a Seq.Set, discarding associated indices or keys.
+     *
+     * Note: `Seq.Set` is a conversion function and not a class, and does not
+     * use the `new` keyword during construction.
      */
     export function Set(): Seq.Set<any>;
     export function Set<T>(): Seq.Set<T>;
@@ -2682,6 +2985,11 @@ declare module Immutable {
       toJSON(): Array<T>;
 
       /**
+       * Shallowly converts this collection to an Array.
+       */
+      toArray(): Array<T>;
+
+      /**
        * Returns itself
        */
       toSeq(): this
@@ -2692,7 +3000,7 @@ declare module Immutable {
        * All entries will be present in the resulting Seq, even if they
        * are duplicates.
        */
-      concat<C>(...valuesOrCollections: Array<Iterable<C> | C>): Seq.Set<T | C>;
+      concat<U>(...collections: Array<Iterable<U>>): Seq.Set<T | U>;
 
       /**
        * Returns a new Seq.Set with values passed through a
@@ -2748,10 +3056,16 @@ declare module Immutable {
    *   * If a `Seq`, that same `Seq`.
    *   * If an `Collection`, a `Seq` of the same kind (Keyed, Indexed, or Set).
    *   * If an Array-like, an `Seq.Indexed`.
-   *   * If an Object with an Iterator, an `Seq.Indexed`.
-   *   * If an Iterator, an `Seq.Indexed`.
+   *   * If an Iterable Object, an `Seq.Indexed`.
    *   * If an Object, a `Seq.Keyed`.
    *
+   * Note: An Iterator itself will be treated as an object, becoming a `Seq.Keyed`,
+   * which is usually not what you want. You should turn your Iterator Object into
+   * an iterable object by defining a Symbol.iterator (or @@iterator) method which
+   * returns `this`.
+   *
+   * Note: `Seq` is a conversion function and not a class, and does not use the
+   * `new` keyword during construction.
    */
   export function Seq<S extends Seq<any, any>>(seq: S): S;
   export function Seq<K, V>(collection: Collection.Keyed<K, V>): Seq.Keyed<K, V>;
@@ -2821,6 +3135,25 @@ declare module Immutable {
     ): Seq<K, M>;
 
     /**
+     * Returns a new Seq with values passed through a
+     * `mapper` function.
+     *
+     * ```js
+     * const { Seq } = require('immutable')
+     * Seq([ 1, 2 ]).map(x => 10 * x)
+     * // Seq [ 10, 20 ]
+     * ```
+     *
+     * Note: `map()` always returns a new instance, even if it produced the same
+     * value at every step.
+     * Note: used only for sets.
+     */
+    map<M>(
+      mapper: (value: V, key: K, iter: this) => M,
+      context?: any
+    ): Seq<M, M>;
+
+    /**
      * Flat-maps the Seq, returning a Seq of the same type.
      *
      * Similar to `seq.map(...).flatten(true)`.
@@ -2829,6 +3162,17 @@ declare module Immutable {
       mapper: (value: V, key: K, iter: this) => Iterable<M>,
       context?: any
     ): Seq<K, M>;
+
+    /**
+     * Flat-maps the Seq, returning a Seq of the same type.
+     *
+     * Similar to `seq.map(...).flatten(true)`.
+     * Note: Used only for sets.
+     */
+    flatMap<M>(
+      mapper: (value: V, key: K, iter: this) => Iterable<M>,
+      context?: any
+    ): Seq<M, M>;
 
     /**
      * Returns a new Seq with only the values for which the `predicate`
@@ -2898,6 +3242,9 @@ declare module Immutable {
      *
      * Similar to `Collection()`, however it expects collection-likes of [K, V]
      * tuples if not constructed from a Collection.Keyed or JS Object.
+     *
+     * Note: `Collection.Keyed` is a conversion function and not a class, and
+     * does not use the `new` keyword during construction.
      */
     export function Keyed<K, V>(collection: Iterable<[K, V]>): Collection.Keyed<K, V>;
     export function Keyed<V>(obj: {[key: string]: V}): Collection.Keyed<string, V>;
@@ -2918,6 +3265,11 @@ declare module Immutable {
       toJSON(): { [key: string]: V };
 
       /**
+       * Shallowly converts this collection to an Array.
+       */
+      toArray(): Array<[K, V]>;
+
+      /**
        * Returns Seq.Keyed.
        * @override
        */
@@ -2930,13 +3282,14 @@ declare module Immutable {
        * Returns a new Collection.Keyed of the same type where the keys and values
        * have been flipped.
        *
+       * <!-- runkit:activate -->
        * ```js
        * const { Map } = require('immutable')
        * Map({ a: 'z', b: 'y' }).flip()
        * // Map { "z": "a", "y": "b" }
        * ```
        */
-      flip(): this;
+      flip(): Collection.Keyed<V, K>;
 
       /**
        * Returns a new Collection with other collections concatenated to this one.
@@ -2966,6 +3319,7 @@ declare module Immutable {
        * Returns a new Collection.Keyed of the same type with keys passed through
        * a `mapper` function.
        *
+       * <!-- runkit:activate -->
        * ```js
        * const { Map } = require('immutable')
        * Map({ a: 1, b: 2 }).mapKeys(x => x.toUpperCase())
@@ -2984,6 +3338,7 @@ declare module Immutable {
        * Returns a new Collection.Keyed of the same type with entries
        * ([key, value] tuples) passed through a `mapper` function.
        *
+       * <!-- runkit:activate -->
        * ```js
        * const { Map } = require('immutable')
        * Map({ a: 1, b: 2 })
@@ -3048,6 +3403,9 @@ declare module Immutable {
 
     /**
      * Creates a new Collection.Indexed.
+     *
+     * Note: `Collection.Indexed` is a conversion function and not a class, and
+     * does not use the `new` keyword during construction.
      */
     export function Indexed<T>(collection: Iterable<T>): Collection.Indexed<T>;
 
@@ -3061,6 +3419,11 @@ declare module Immutable {
        * Shallowly converts this Indexed collection to equivalent native JavaScript Array.
        */
       toJSON(): Array<T>;
+
+      /**
+       * Shallowly converts this collection to an Array.
+       */
+      toArray(): Array<T>;
 
       // Reading values
 
@@ -3105,6 +3468,9 @@ declare module Immutable {
        * The resulting Collection includes the first item from each, then the
        * second from each, etc.
        *
+       * <!-- runkit:activate
+       *      { "preamble": "require('immutable')"}
+       * -->
        * ```js
        * const { List } = require('immutable')
        * List([ 1, 2, 3 ]).interleave(List([ 'A', 'B', 'C' ]))
@@ -3113,6 +3479,9 @@ declare module Immutable {
        *
        * The shortest Collection stops interleave.
        *
+       * <!-- runkit:activate
+       *      { "preamble": "const { List } = require('immutable')" }
+       * -->
        * ```js
        * List([ 1, 2, 3 ]).interleave(
        *   List([ 'A', 'B' ]),
@@ -3120,6 +3489,11 @@ declare module Immutable {
        * )
        * // List [ 1, "A", "X", 2, "B", "Y"" ]
        * ```
+       *
+       * Since `interleave()` re-indexes values, it produces a complete copy,
+       * which has `O(N)` complexity.
+       *
+       * Note: `interleave` *cannot* be used in `withMutations`.
        */
       interleave(...collections: Array<Collection<any, T>>): this;
 
@@ -3131,11 +3505,17 @@ declare module Immutable {
        * `index` may be a negative number, which indexes back from the end of the
        * Collection. `s.splice(-2)` splices after the second to last item.
        *
+       * <!-- runkit:activate -->
        * ```js
        * const { List } = require('immutable')
        * List([ 'a', 'b', 'c', 'd' ]).splice(1, 2, 'q', 'r', 's')
        * // List [ "a", "q", "r", "s", "d" ]
        * ```
+       *
+       * Since `splice()` re-indexes values, it produces a complete copy, which
+       * has `O(N)` complexity.
+       *
+       * Note: `splice` *cannot* be used in `withMutations`.
        */
       splice(
         index: number,
@@ -3149,18 +3529,43 @@ declare module Immutable {
        *
        * Like `zipWith`, but using the default `zipper`: creating an `Array`.
        *
+       *
+       * <!-- runkit:activate
+       *      { "preamble": "const { List } = require('immutable')" }
+       * -->
        * ```js
        * const a = List([ 1, 2, 3 ]);
        * const b = List([ 4, 5, 6 ]);
        * const c = a.zip(b); // List [ [ 1, 4 ], [ 2, 5 ], [ 3, 6 ] ]
        * ```
        */
+      zip<U>(other: Collection<any, U>): Collection.Indexed<[T,U]>;
+      zip<U,V>(other: Collection<any, U>, other2: Collection<any, V>): Collection.Indexed<[T,U,V]>;
       zip(...collections: Array<Collection<any, any>>): Collection.Indexed<any>;
+
+      /**
+       * Returns a Collection "zipped" with the provided collections.
+       *
+       * Unlike `zip`, `zipAll` continues zipping until the longest collection is
+       * exhausted. Missing values from shorter collections are filled with `undefined`.
+       *
+       * ```js
+       * const a = List([ 1, 2 ]);
+       * const b = List([ 3, 4, 5 ]);
+       * const c = a.zipAll(b); // List [ [ 1, 3 ], [ 2, 4 ], [ undefined, 5 ] ]
+       * ```
+       */
+      zipAll<U>(other: Collection<any, U>): Collection.Indexed<[T,U]>;
+      zipAll<U,V>(other: Collection<any, U>, other2: Collection<any, V>): Collection.Indexed<[T,U,V]>;
+      zipAll(...collections: Array<Collection<any, any>>): Collection.Indexed<any>;
 
       /**
        * Returns a Collection of the same type "zipped" with the provided
        * collections by using a custom `zipper` function.
        *
+       * <!-- runkit:activate
+       *      { "preamble": "const { List } = require('immutable')" }
+       * -->
        * ```js
        * const a = List([ 1, 2, 3 ]);
        * const b = List([ 4, 5, 6 ]);
@@ -3291,6 +3696,9 @@ declare module Immutable {
 
     /**
      * Similar to `Collection()`, but always returns a Collection.Set.
+     *
+     * Note: `Collection.Set` is a factory function and not a class, and does
+     * not use the `new` keyword during construction.
      */
     export function Set<T>(collection: Iterable<T>): Collection.Set<T>;
 
@@ -3306,6 +3714,11 @@ declare module Immutable {
       toJSON(): Array<T>;
 
       /**
+       * Shallowly converts this collection to an Array.
+       */
+      toArray(): Array<T>;
+
+      /**
        * Returns Seq.Set.
        * @override
        */
@@ -3316,7 +3729,7 @@ declare module Immutable {
       /**
        * Returns a new Collection with other collections concatenated to this one.
        */
-      concat<C>(...valuesOrCollections: Array<Iterable<C> | C>): Collection.Set<T | C>;
+      concat<U>(...collections: Array<Iterable<U>>): Collection.Set<T | U>;
 
       /**
        * Returns a new Collection.Set with values passed through a
@@ -3373,13 +3786,20 @@ declare module Immutable {
    *
    *   * If an `Collection`, that same `Collection`.
    *   * If an Array-like, an `Collection.Indexed`.
-   *   * If an Object with an Iterator, an `Collection.Indexed`.
-   *   * If an Iterator, an `Collection.Indexed`.
+   *   * If an Object with an Iterator defined, an `Collection.Indexed`.
    *   * If an Object, an `Collection.Keyed`.
    *
    * This methods forces the conversion of Objects and Strings to Collections.
    * If you want to ensure that a Collection of one item is returned, use
    * `Seq.of`.
+   *
+   * Note: An Iterator itself will be treated as an object, becoming a `Seq.Keyed`,
+   * which is usually not what you want. You should turn your Iterator Object into
+   * an iterable object by defining a Symbol.iterator (or @@iterator) method which
+   * returns `this`.
+   *
+   * Note: `Collection` is a conversion function and not a class, and does not
+   * use the `new` keyword during construction.
    */
   export function Collection<I extends Collection<any, any>>(collection: I): I;
   export function Collection<T>(collection: Iterable<T>): Collection.Indexed<T>;
@@ -3405,12 +3825,15 @@ declare module Immutable {
      * and is used when adding this to a `Set` or as a key in a `Map`, enabling
      * lookup via a different instance.
      *
+     * <!-- runkit:activate
+     *      { "preamble": "const { Set,  List } = require('immutable')" }
+     * -->
      * ```js
      * const a = List([ 1, 2, 3 ]);
      * const b = List([ 1, 2, 3 ]);
-     * assert(a !== b); // different instances
+     * assert.notStrictEqual(a, b); // different instances
      * const set = Set([ a ]);
-     * assert(set.has(b) === true);
+     * assert.equal(set.has(b), true);
      * ```
      *
      * If two values have the same `hashCode`, they are [not guaranteed
@@ -3450,21 +3873,43 @@ declare module Immutable {
     contains(value: V): boolean;
 
     /**
-     * The first value in the Collection.
+     * In case the `Collection` is not empty returns the first element of the
+     * `Collection`.
+     * In case the `Collection` is empty returns the optional default
+     * value if provided, if no default value is provided returns undefined.
      */
-    first(): V | undefined;
+    first<NSV>(notSetValue?: NSV): V | NSV;
 
     /**
-     * The last value in the Collection.
+     * In case the `Collection` is not empty returns the last element of the
+     * `Collection`.
+     * In case the `Collection` is empty returns the optional default
+     * value if provided, if no default value is provided returns undefined.
      */
-    last(): V | undefined;
-
+    last<NSV>(notSetValue?: NSV): V | NSV;
 
     // Reading deep values
 
     /**
      * Returns the value found by following a path of keys or indices through
      * nested Collections.
+     *
+     * <!-- runkit:activate -->
+     * ```js
+     * const { Map, List } = require('immutable')
+     * const deepData = Map({ x: List([ Map({ y: 123 }) ]) });
+     * deepData.getIn(['x', 0, 'y']) // 123
+     * ```
+     *
+     * Plain JavaScript Object or Arrays may be nested within an Immutable.js
+     * Collection, and getIn() can access those values as well:
+     *
+     * <!-- runkit:activate -->
+     * ```js
+     * const { Map, List } = require('immutable')
+     * const deepData = Map({ x: [ { y: 123 } ] });
+     * deepData.getIn(['x', 0, 'y']) // 123
+     * ```
      */
     getIn(searchKeyPath: Iterable<any>, notSetValue?: any): any;
 
@@ -3482,6 +3927,7 @@ declare module Immutable {
      *
      * For example, to sum a Seq after mapping and filtering:
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Seq } = require('immutable')
      *
@@ -3518,9 +3964,12 @@ declare module Immutable {
     toJSON(): Array<V> | { [key: string]: V };
 
     /**
-     * Shallowly converts this collection to an Array, discarding keys.
+     * Shallowly converts this collection to an Array.
+     *
+     * `Collection.Indexed`, and `Collection.Set` produce an Array of values.
+     * `Collection.Keyed` produce an Array of [key, value] tuples.
      */
-    toArray(): Array<V>;
+    toArray(): Array<V> | Array<[K, V]>;
 
     /**
      * Shallowly converts this Collection to an Object.
@@ -3574,6 +4023,7 @@ declare module Immutable {
      * `collection.toList()` discards the keys and creates a list of only the
      * values, whereas `List(collection)` creates a list of entry tuples.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map, List } = require('immutable')
      * var myMap = Map({ a: 'Apple', b: 'Banana' })
@@ -3610,6 +4060,7 @@ declare module Immutable {
      * The returned Seq will have identical iteration order as
      * this Collection.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Seq } = require('immutable')
      * const indexedSeq = Seq([ 'A', 'B', 'C' ])
@@ -3690,6 +4141,7 @@ declare module Immutable {
      * Returns a new Collection of the same type with values passed through a
      * `mapper` function.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Collection } = require('immutable')
      * Collection({ a: 1, b: 2 }).map(x => 10 * x)
@@ -3705,9 +4157,18 @@ declare module Immutable {
     ): Collection<K, M>;
 
     /**
+     * Note: used only for sets, which return Collection<M, M> but are otherwise
+     * identical to normal `map()`.
+     *
+     * @ignore
+     */
+    map<M>(...args: never[]): any;
+
+    /**
      * Returns a new Collection of the same type with only the entries for which
      * the `predicate` function returns true.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * Map({ a: 1, b: 2, c: 3, d: 4}).filter(x => x % 2 === 0)
@@ -3730,6 +4191,7 @@ declare module Immutable {
      * Returns a new Collection of the same type with only the entries for which
      * the `predicate` function returns false.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * Map({ a: 1, b: 2, c: 3, d: 4}).filterNot(x => x % 2 === 0)
@@ -3766,6 +4228,7 @@ declare module Immutable {
      * When sorting collections which have no defined order, their ordered
      * equivalents will be returned. e.g. `map.sort()` returns OrderedMap.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { Map } = require('immutable')
      * Map({ "c": 3, "a": 1, "b": 2 }).sort((a, b) => {
@@ -3778,6 +4241,8 @@ declare module Immutable {
      *
      * Note: `sort()` Always returns a new instance, even if the original was
      * already sorted.
+     *
+     * Note: This is always an eager operation.
      */
     sort(comparator?: (valueA: V, valueB: V) => number): this;
 
@@ -3789,6 +4254,8 @@ declare module Immutable {
      *
      * Note: `sortBy()` Always returns a new instance, even if the original was
      * already sorted.
+     *
+     * Note: This is always an eager operation.
      */
     sortBy<C>(
       comparatorValueMapper: (value: V, key: K, iter: this) => C,
@@ -3801,6 +4268,7 @@ declare module Immutable {
      *
      * Note: This is always an eager operation.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { List, Map } = require('immutable')
      * const listOfMaps = List([
@@ -3887,6 +4355,7 @@ declare module Immutable {
      * Returns a new Collection of the same type which includes entries starting
      * from when `predicate` first returns false.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { List } = require('immutable')
      * List([ 'dog', 'frog', 'cat', 'hat', 'god' ])
@@ -3903,6 +4372,7 @@ declare module Immutable {
      * Returns a new Collection of the same type which includes entries starting
      * from when `predicate` first returns true.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { List } = require('immutable')
      * List([ 'dog', 'frog', 'cat', 'hat', 'god' ])
@@ -3931,6 +4401,7 @@ declare module Immutable {
      * Returns a new Collection of the same type which includes entries from this
      * Collection as long as the `predicate` returns true.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { List } = require('immutable')
      * List([ 'dog', 'frog', 'cat', 'hat', 'god' ])
@@ -3947,6 +4418,7 @@ declare module Immutable {
      * Returns a new Collection of the same type which includes entries from this
      * Collection as long as the `predicate` returns false.
      *
+     * <!-- runkit:activate -->
      * ```js
      * const { List } = require('immutable')
      * List([ 'dog', 'frog', 'cat', 'hat', 'god' ])
@@ -3996,6 +4468,17 @@ declare module Immutable {
       mapper: (value: V, key: K, iter: this) => Iterable<M>,
       context?: any
     ): Collection<K, M>;
+
+    /**
+     * Flat-maps the Collection, returning a Collection of the same type.
+     *
+     * Similar to `collection.map(...).flatten(true)`.
+     * Used for Dictionaries only.
+     */
+    flatMap<KM, VM>(
+      mapper: (value: V, key: K, iter: this) => Iterable<[KM, VM]>,
+      context?: any
+    ): Collection<KM, VM>;
 
     // Reducing a value
 
@@ -4232,6 +4715,625 @@ declare module Immutable {
      */
     isSuperset(iter: Iterable<V>): boolean;
   }
+
+  /**
+   * The interface to fulfill to qualify as a Value Object.
+   */
+  export interface ValueObject {
+    /**
+     * True if this and the other Collection have value equality, as defined
+     * by `Immutable.is()`.
+     *
+     * Note: This is equivalent to `Immutable.is(this, other)`, but provided to
+     * allow for chained expressions.
+     */
+    equals(other: any): boolean;
+
+    /**
+     * Computes and returns the hashed identity for this Collection.
+     *
+     * The `hashCode` of a Collection is used to determine potential equality,
+     * and is used when adding this to a `Set` or as a key in a `Map`, enabling
+     * lookup via a different instance.
+     *
+     * <!-- runkit:activate -->
+     * ```js
+     * const { List, Set } = require('immutable');
+     * const a = List([ 1, 2, 3 ]);
+     * const b = List([ 1, 2, 3 ]);
+     * assert.notStrictEqual(a, b); // different instances
+     * const set = Set([ a ]);
+     * assert.equal(set.has(b), true);
+     * ```
+     *
+     * Note: hashCode() MUST return a Uint32 number. The easiest way to
+     * guarantee this is to return `myHash | 0` from a custom implementation.
+     *
+     * If two values have the same `hashCode`, they are [not guaranteed
+     * to be equal][Hash Collision]. If two values have different `hashCode`s,
+     * they must not be equal.
+     *
+     * Note: `hashCode()` is not guaranteed to always be called before
+     * `equals()`. Most but not all Immutable.js collections use hash codes to
+     * organize their internal data structures, while all Immutable.js
+     * collections use equality during lookups.
+     *
+     * [Hash Collision]: http://en.wikipedia.org/wiki/Collision_(computer_science)
+     */
+    hashCode(): number;
+  }
+
+  /**
+   * Deeply converts plain JS objects and arrays to Immutable Maps and Lists.
+   *
+   * If a `reviver` is optionally provided, it will be called with every
+   * collection as a Seq (beginning with the most nested collections
+   * and proceeding to the top-level collection itself), along with the key
+   * referring to each collection and the parent JS object provided as `this`.
+   * For the top level, object, the key will be `""`. This `reviver` is expected
+   * to return a new Immutable Collection, allowing for custom conversions from
+   * deep JS objects. Finally, a `path` is provided which is the sequence of
+   * keys to this value from the starting value.
+   *
+   * `reviver` acts similarly to the [same parameter in `JSON.parse`][1].
+   *
+   * If `reviver` is not provided, the default behavior will convert Objects
+   * into Maps and Arrays into Lists like so:
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { fromJS, isKeyed } = require('immutable')
+   * function (key, value) {
+   *   return isKeyed(value) ? value.toMap() : value.toList()
+   * }
+   * ```
+   *
+   * `fromJS` is conservative in its conversion. It will only convert
+   * arrays which pass `Array.isArray` to Lists, and only raw objects (no custom
+   * prototype) to Map.
+   *
+   * Accordingly, this example converts native JS data to OrderedMap and List:
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { fromJS, isKeyed } = require('immutable')
+   * fromJS({ a: {b: [10, 20, 30]}, c: 40}, function (key, value, path) {
+   *   console.log(key, value, path)
+   *   return isKeyed(value) ? value.toOrderedMap() : value.toList()
+   * })
+   *
+   * > "b", [ 10, 20, 30 ], [ "a", "b" ]
+   * > "a", {b: [10, 20, 30]}, [ "a" ]
+   * > "", {a: {b: [10, 20, 30]}, c: 40}, []
+   * ```
+   *
+   * Keep in mind, when using JS objects to construct Immutable Maps, that
+   * JavaScript Object properties are always strings, even if written in a
+   * quote-less shorthand, while Immutable Maps accept keys of any type.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { Map } = require('immutable')
+   * let obj = { 1: "one" };
+   * Object.keys(obj); // [ "1" ]
+   * assert.equal(obj["1"], obj[1]); // "one" === "one"
+   *
+   * let map = Map(obj);
+   * assert.notEqual(map.get("1"), map.get(1)); // "one" !== undefined
+   * ```
+   *
+   * Property access for JavaScript Objects first converts the key to a string,
+   * but since Immutable Map keys can be of any type the argument to `get()` is
+   * not altered.
+   *
+   * [1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse#Example.3A_Using_the_reviver_parameter
+   *      "Using the reviver parameter"
+   */
+  export function fromJS(
+    jsValue: any,
+    reviver?: (
+      key: string | number,
+      sequence: Collection.Keyed<string, any> | Collection.Indexed<any>,
+      path?: Array<string | number>
+    ) => any
+  ): any;
+
+  /**
+   * Value equality check with semantics similar to `Object.is`, but treats
+   * Immutable `Collection`s as values, equal if the second `Collection` includes
+   * equivalent values.
+   *
+   * It's used throughout Immutable when checking for equality, including `Map`
+   * key equality and `Set` membership.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { Map, is } = require('immutable')
+   * const map1 = Map({ a: 1, b: 1, c: 1 })
+   * const map2 = Map({ a: 1, b: 1, c: 1 })
+   * assert.equal(map1 !== map2, true)
+   * assert.equal(Object.is(map1, map2), false)
+   * assert.equal(is(map1, map2), true)
+   * ```
+   *
+   * `is()` compares primitive types like strings and numbers, Immutable.js
+   * collections like `Map` and `List`, but also any custom object which
+   * implements `ValueObject` by providing `equals()` and `hashCode()` methods.
+   *
+   * Note: Unlike `Object.is`, `Immutable.is` assumes `0` and `-0` are the same
+   * value, matching the behavior of ES6 Map key equality.
+   */
+  export function is(first: any, second: any): boolean;
+
+  /**
+   * The `hash()` function is an important part of how Immutable determines if
+   * two values are equivalent and is used to determine how to store those
+   * values. Provided with any value, `hash()` will return a 31-bit integer.
+   *
+   * When designing Objects which may be equal, it's important that when a
+   * `.equals()` method returns true, that both values `.hashCode()` method
+   * return the same value. `hash()` may be used to produce those values.
+   *
+   * For non-Immutable Objects that do not provide a `.hashCode()` functions
+   * (including plain Objects, plain Arrays, Date objects, etc), a unique hash
+   * value will be created for each *instance*. That is, the create hash
+   * represents referential equality, and not value equality for Objects. This
+   * ensures that if that Object is mutated over time that its hash code will
+   * remain consistent, allowing Objects to be used as keys and values in
+   * Immutable.js collections.
+   *
+   * Note that `hash()` attempts to balance between speed and avoiding
+   * collisions, however it makes no attempt to produce secure hashes.
+   *
+   * *New in Version 4.0*
+   */
+  export function hash(value: any): number;
+
+  /**
+   * True if `maybeImmutable` is an Immutable Collection or Record.
+   *
+   * Note: Still returns true even if the collections is within a `withMutations()`.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { isImmutable, Map, List, Stack } = require('immutable');
+   * isImmutable([]); // false
+   * isImmutable({}); // false
+   * isImmutable(Map()); // true
+   * isImmutable(List()); // true
+   * isImmutable(Stack()); // true
+   * isImmutable(Map().asMutable()); // true
+   * ```
+   */
+  export function isImmutable(maybeImmutable: any): maybeImmutable is Collection<any, any>;
+
+  /**
+   * True if `maybeCollection` is a Collection, or any of its subclasses.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { isCollection, Map, List, Stack } = require('immutable');
+   * isCollection([]); // false
+   * isCollection({}); // false
+   * isCollection(Map()); // true
+   * isCollection(List()); // true
+   * isCollection(Stack()); // true
+   * ```
+   */
+  export function isCollection(maybeCollection: any): maybeCollection is Collection<any, any>;
+
+  /**
+   * True if `maybeKeyed` is a Collection.Keyed, or any of its subclasses.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { isKeyed, Map, List, Stack } = require('immutable');
+   * isKeyed([]); // false
+   * isKeyed({}); // false
+   * isKeyed(Map()); // true
+   * isKeyed(List()); // false
+   * isKeyed(Stack()); // false
+   * ```
+   */
+  export function isKeyed(maybeKeyed: any): maybeKeyed is Collection.Keyed<any, any>;
+
+  /**
+   * True if `maybeIndexed` is a Collection.Indexed, or any of its subclasses.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { isIndexed, Map, List, Stack, Set } = require('immutable');
+   * isIndexed([]); // false
+   * isIndexed({}); // false
+   * isIndexed(Map()); // false
+   * isIndexed(List()); // true
+   * isIndexed(Stack()); // true
+   * isIndexed(Set()); // false
+   * ```
+   */
+  export function isIndexed(maybeIndexed: any): maybeIndexed is Collection.Indexed<any>;
+
+  /**
+   * True if `maybeAssociative` is either a Keyed or Indexed Collection.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { isAssociative, Map, List, Stack, Set } = require('immutable');
+   * isAssociative([]); // false
+   * isAssociative({}); // false
+   * isAssociative(Map()); // true
+   * isAssociative(List()); // true
+   * isAssociative(Stack()); // true
+   * isAssociative(Set()); // false
+   * ```
+   */
+  export function isAssociative(maybeAssociative: any): maybeAssociative is Collection.Keyed<any, any> | Collection.Indexed<any>;
+
+  /**
+   * True if `maybeOrdered` is a Collection where iteration order is well
+   * defined. True for Collection.Indexed as well as OrderedMap and OrderedSet.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { isOrdered, Map, OrderedMap, List, Set } = require('immutable');
+   * isOrdered([]); // false
+   * isOrdered({}); // false
+   * isOrdered(Map()); // false
+   * isOrdered(OrderedMap()); // true
+   * isOrdered(List()); // true
+   * isOrdered(Set()); // false
+   * ```
+   */
+  export function isOrdered(maybeOrdered: any): boolean;
+
+  /**
+   * True if `maybeValue` is a JavaScript Object which has *both* `equals()`
+   * and `hashCode()` methods.
+   *
+   * Any two instances of *value objects* can be compared for value equality with
+   * `Immutable.is()` and can be used as keys in a `Map` or members in a `Set`.
+   */
+  export function isValueObject(maybeValue: any): maybeValue is ValueObject;
+
+
+  /**
+   * True if `maybeSeq` is a Seq.
+   */
+  export function isSeq(maybeSeq: any): maybeSeq is Seq.Indexed<any> | Seq.Keyed<any, any> | Seq.Set<any>;
+
+  /**
+   * True if `maybeList` is a List.
+   */
+  export function isList(maybeList: any): maybeList is List<any>;
+
+  /**
+   * True if `maybeMap` is a Map.
+   *
+   * Also true for OrderedMaps.
+   */
+  export function isMap(maybeMap: any): maybeMap is Map<any, any>;
+
+  /**
+   * True if `maybeOrderedMap` is an OrderedMap.
+   */
+  export function isOrderedMap(maybeOrderedMap: any): maybeOrderedMap is OrderedMap<any, any>;
+
+  /**
+   * True if `maybeStack` is a Stack.
+   */
+  export function isStack(maybeStack: any): maybeStack is Stack<any>;
+
+  /**
+   * True if `maybeSet` is a Set.
+   *
+   * Also true for OrderedSets.
+   */
+  export function isSet(maybeSet: any): maybeSet is Set<any>;
+
+  /**
+   * True if `maybeOrderedSet` is an OrderedSet.
+   */
+  export function isOrderedSet(maybeOrderedSet: any): maybeOrderedSet is OrderedSet<any>;
+
+  /**
+   * True if `maybeRecord` is a Record.
+   */
+  export function isRecord(maybeRecord: any): maybeRecord is Record<any>;
+
+
+
+  /**
+   * Returns the value within the provided collection associated with the
+   * provided key, or notSetValue if the key is not defined in the collection.
+   *
+   * A functional alternative to `collection.get(key)` which will also work on
+   * plain Objects and Arrays as an alternative for `collection[key]`.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { get } = require('immutable')
+   * get([ 'dog', 'frog', 'cat' ], 2) // 'frog'
+   * get({ x: 123, y: 456 }, 'x') // 123
+   * get({ x: 123, y: 456 }, 'z', 'ifNotSet') // 'ifNotSet'
+   * ```
+   */
+  export function get<K, V>(collection: Collection<K, V>, key: K): V | undefined;
+  export function get<K, V, NSV>(collection: Collection<K, V>, key: K, notSetValue: NSV): V | NSV;
+  export function get<TProps, K extends keyof TProps>(record: Record<TProps>, key: K, notSetValue: any): TProps[K];
+  export function get<V>(collection: Array<V>, key: number): V | undefined;
+  export function get<V, NSV>(collection: Array<V>, key: number, notSetValue: NSV): V | NSV;
+  export function get<C extends Object, K extends keyof C>(object: C, key: K, notSetValue: any): C[K];
+  export function get<V>(collection: {[key: string]: V}, key: string): V | undefined;
+  export function get<V, NSV>(collection: {[key: string]: V}, key: string, notSetValue: NSV): V | NSV;
+
+  /**
+   * Returns true if the key is defined in the provided collection.
+   *
+   * A functional alternative to `collection.has(key)` which will also work with
+   * plain Objects and Arrays as an alternative for
+   * `collection.hasOwnProperty(key)`.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { has } = require('immutable')
+   * has([ 'dog', 'frog', 'cat' ], 2) // true
+   * has([ 'dog', 'frog', 'cat' ], 5) // false
+   * has({ x: 123, y: 456 }, 'x') // true
+   * has({ x: 123, y: 456 }, 'z') // false
+   * ```
+   */
+  export function has(collection: Object, key: any): boolean;
+
+  /**
+   * Returns a copy of the collection with the value at key removed.
+   *
+   * A functional alternative to `collection.remove(key)` which will also work
+   * with plain Objects and Arrays as an alternative for
+   * `delete collectionCopy[key]`.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { remove } = require('immutable')
+   * const originalArray = [ 'dog', 'frog', 'cat' ]
+   * remove(originalArray, 1) // [ 'dog', 'cat' ]
+   * console.log(originalArray) // [ 'dog', 'frog', 'cat' ]
+   * const originalObject = { x: 123, y: 456 }
+   * remove(originalObject, 'x') // { y: 456 }
+   * console.log(originalObject) // { x: 123, y: 456 }
+   * ```
+   */
+  export function remove<K, C extends Collection<K, any>>(collection: C, key: K): C;
+  export function remove<TProps, C extends Record<TProps>, K extends keyof TProps>(collection: C, key: K): C;
+  export function remove<C extends Array<any>>(collection: C, key: number): C;
+  export function remove<C, K extends keyof C>(collection: C, key: K): C;
+  export function remove<C extends {[key: string]: any}, K extends keyof C>(collection: C, key: K): C;
+
+  /**
+   * Returns a copy of the collection with the value at key set to the provided
+   * value.
+   *
+   * A functional alternative to `collection.set(key, value)` which will also
+   * work with plain Objects and Arrays as an alternative for
+   * `collectionCopy[key] = value`.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { set } = require('immutable')
+   * const originalArray = [ 'dog', 'frog', 'cat' ]
+   * set(originalArray, 1, 'cow') // [ 'dog', 'cow', 'cat' ]
+   * console.log(originalArray) // [ 'dog', 'frog', 'cat' ]
+   * const originalObject = { x: 123, y: 456 }
+   * set(originalObject, 'x', 789) // { x: 789, y: 456 }
+   * console.log(originalObject) // { x: 123, y: 456 }
+   * ```
+   */
+  export function set<K, V, C extends Collection<K, V>>(collection: C, key: K, value: V): C;
+  export function set<TProps, C extends Record<TProps>, K extends keyof TProps>(record: C, key: K, value: TProps[K]): C;
+  export function set<V, C extends Array<V>>(collection: C, key: number, value: V): C;
+  export function set<C, K extends keyof C>(object: C, key: K, value: C[K]): C;
+  export function set<V, C extends {[key: string]: V}>(collection: C, key: string, value: V): C;
+
+  /**
+   * Returns a copy of the collection with the value at key set to the result of
+   * providing the existing value to the updating function.
+   *
+   * A functional alternative to `collection.update(key, fn)` which will also
+   * work with plain Objects and Arrays as an alternative for
+   * `collectionCopy[key] = fn(collection[key])`.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { update } = require('immutable')
+   * const originalArray = [ 'dog', 'frog', 'cat' ]
+   * update(originalArray, 1, val => val.toUpperCase()) // [ 'dog', 'FROG', 'cat' ]
+   * console.log(originalArray) // [ 'dog', 'frog', 'cat' ]
+   * const originalObject = { x: 123, y: 456 }
+   * update(originalObject, 'x', val => val * 6) // { x: 738, y: 456 }
+   * console.log(originalObject) // { x: 123, y: 456 }
+   * ```
+   */
+  export function update<K, V, C extends Collection<K, V>>(collection: C, key: K, updater: (value: V) => V): C;
+  export function update<K, V, C extends Collection<K, V>, NSV>(collection: C, key: K, notSetValue: NSV, updater: (value: V | NSV) => V): C;
+  export function update<TProps, C extends Record<TProps>, K extends keyof TProps>(record: C, key: K, updater: (value: TProps[K]) => TProps[K]): C;
+  export function update<TProps, C extends Record<TProps>, K extends keyof TProps, NSV>(record: C, key: K, notSetValue: NSV, updater: (value: TProps[K] | NSV) => TProps[K]): C;
+  export function update<V>(collection: Array<V>, key: number, updater: (value: V) => V): Array<V>;
+  export function update<V, NSV>(collection: Array<V>, key: number, notSetValue: NSV, updater: (value: V | NSV) => V): Array<V>;
+  export function update<C, K extends keyof C>(object: C, key: K, updater: (value: C[K]) => C[K]): C;
+  export function update<C, K extends keyof C, NSV>(object: C, key: K, notSetValue: NSV, updater: (value: C[K] | NSV) => C[K]): C;
+  export function update<V, C extends {[key: string]: V}, K extends keyof C>(collection: C, key: K, updater: (value: V) => V): {[key: string]: V};
+  export function update<V, C extends {[key: string]: V}, K extends keyof C, NSV>(collection: C, key: K, notSetValue: NSV, updater: (value: V | NSV) => V): {[key: string]: V};
+
+  /**
+   * Returns the value at the provided key path starting at the provided
+   * collection, or notSetValue if the key path is not defined.
+   *
+   * A functional alternative to `collection.getIn(keypath)` which will also
+   * work with plain Objects and Arrays.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { getIn } = require('immutable')
+   * getIn({ x: { y: { z: 123 }}}, ['x', 'y', 'z']) // 123
+   * getIn({ x: { y: { z: 123 }}}, ['x', 'q', 'p'], 'ifNotSet') // 'ifNotSet'
+   * ```
+   */
+  export function getIn(collection: any, keyPath: Iterable<any>, notSetValue: any): any;
+
+  /**
+   * Returns true if the key path is defined in the provided collection.
+   *
+   * A functional alternative to `collection.hasIn(keypath)` which will also
+   * work with plain Objects and Arrays.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { hasIn } = require('immutable')
+   * hasIn({ x: { y: { z: 123 }}}, ['x', 'y', 'z']) // true
+   * hasIn({ x: { y: { z: 123 }}}, ['x', 'q', 'p']) // false
+   * ```
+   */
+  export function hasIn(collection: any, keyPath: Iterable<any>): boolean;
+
+  /**
+   * Returns a copy of the collection with the value at the key path removed.
+   *
+   * A functional alternative to `collection.removeIn(keypath)` which will also
+   * work with plain Objects and Arrays.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { removeIn } = require('immutable')
+   * const original = { x: { y: { z: 123 }}}
+   * removeIn(original, ['x', 'y', 'z']) // { x: { y: {}}}
+   * console.log(original) // { x: { y: { z: 123 }}}
+   * ```
+   */
+  export function removeIn<C>(collection: C, keyPath: Iterable<any>): C;
+
+  /**
+   * Returns a copy of the collection with the value at the key path set to the
+   * provided value.
+   *
+   * A functional alternative to `collection.setIn(keypath)` which will also
+   * work with plain Objects and Arrays.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { setIn } = require('immutable')
+   * const original = { x: { y: { z: 123 }}}
+   * setIn(original, ['x', 'y', 'z'], 456) // { x: { y: { z: 456 }}}
+   * console.log(original) // { x: { y: { z: 123 }}}
+   * ```
+   */
+  export function setIn<C>(collection: C, keyPath: Iterable<any>, value: any): C;
+
+  /**
+   * Returns a copy of the collection with the value at key path set to the
+   * result of providing the existing value to the updating function.
+   *
+   * A functional alternative to `collection.updateIn(keypath)` which will also
+   * work with plain Objects and Arrays.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { updateIn } = require('immutable')
+   * const original = { x: { y: { z: 123 }}}
+   * updateIn(original, ['x', 'y', 'z'], val => val * 6) // { x: { y: { z: 738 }}}
+   * console.log(original) // { x: { y: { z: 123 }}}
+   * ```
+   */
+  export function updateIn<C>(collection: C, keyPath: Iterable<any>, updater: (value: any) => any): C;
+  export function updateIn<C>(collection: C, keyPath: Iterable<any>, notSetValue: any, updater: (value: any) => any): C;
+
+  /**
+   * Returns a copy of the collection with the remaining collections merged in.
+   *
+   * A functional alternative to `collection.merge()` which will also work with
+   * plain Objects and Arrays.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { merge } = require('immutable')
+   * const original = { x: 123, y: 456 }
+   * merge(original, { y: 789, z: 'abc' }) // { x: 123, y: 789, z: 'abc' }
+   * console.log(original) // { x: 123, y: 456 }
+   * ```
+   */
+  export function merge<C>(
+    collection: C,
+    ...collections: Array<Iterable<any> | Iterable<[any, any]> | {[key: string]: any}>
+  ): C;
+
+  /**
+   * Returns a copy of the collection with the remaining collections merged in,
+   * calling the `merger` function whenever an existing value is encountered.
+   *
+   * A functional alternative to `collection.mergeWith()` which will also work
+   * with plain Objects and Arrays.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { mergeWith } = require('immutable')
+   * const original = { x: 123, y: 456 }
+   * mergeWith(
+   *   (oldVal, newVal) => oldVal + newVal,
+   *   original,
+   *   { y: 789, z: 'abc' }
+   * ) // { x: 123, y: 1245, z: 'abc' }
+   * console.log(original) // { x: 123, y: 456 }
+   * ```
+   */
+  export function mergeWith<C>(
+    merger: (oldVal: any, newVal: any, key: any) => any,
+    collection: C,
+    ...collections: Array<Iterable<any> | Iterable<[any, any]> | {[key: string]: any}>
+  ): C;
+
+  /**
+   * Returns a copy of the collection with the remaining collections merged in
+   * deeply (recursively).
+   *
+   * A functional alternative to `collection.mergeDeep()` which will also work
+   * with plain Objects and Arrays.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { mergeDeep } = require('immutable')
+   * const original = { x: { y: 123 }}
+   * mergeDeep(original, { x: { z: 456 }}) // { x: { y: 123, z: 456 }}
+   * console.log(original) // { x: { y: 123 }}
+   * ```
+   */
+  export function mergeDeep<C>(
+    collection: C,
+    ...collections: Array<Iterable<any> | Iterable<[any, any]> | {[key: string]: any}>
+  ): C;
+
+  /**
+   * Returns a copy of the collection with the remaining collections merged in
+   * deeply (recursively), calling the `merger` function whenever an existing
+   * value is encountered.
+   *
+   * A functional alternative to `collection.mergeDeepWith()` which will also
+   * work with plain Objects and Arrays.
+   *
+   * <!-- runkit:activate -->
+   * ```js
+   * const { mergeDeepWith } = require('immutable')
+   * const original = { x: { y: 123 }}
+   * mergeDeepWith(
+   *   (oldVal, newVal) => oldVal + newVal,
+   *   original,
+   *   { x: { y: 456 }}
+   * ) // { x: { y: 579 }}
+   * console.log(original) // { x: { y: 123 }}
+   * ```
+   */
+  export function mergeDeepWith<C>(
+    merger: (oldVal: any, newVal: any, key: any) => any,
+    collection: C,
+    ...collections: Array<Iterable<any> | Iterable<[any, any]> | {[key: string]: any}>
+  ): C;
 }
 
 declare module "immutable" {

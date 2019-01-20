@@ -1,3 +1,10 @@
+/**
+ * Copyright (c) 2014-present, Facebook, Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 const Immutable1 = require('../');
 
 jest.resetModuleRegistry();
@@ -32,8 +39,8 @@ describe('MultiRequire', () => {
       c: Immutable2.Map({
         x: 3,
         y: 4,
-        z: Immutable1.Map()
-      })
+        z: Immutable1.Map(),
+      }),
     });
 
     expect(deep.toJS()).toEqual({
@@ -42,8 +49,8 @@ describe('MultiRequire', () => {
       c: {
         x: 3,
         y: 4,
-        z: {}
-      }
+        z: {},
+      },
     });
   });
 

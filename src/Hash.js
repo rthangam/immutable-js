@@ -1,71 +1,78 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 import { smi } from './Math';
 
+const defaultValueOf = Object.prototype.valueOf;
+
 export function hash(o) {
-  if (o === false || o === null || o === undefined) {
+  switch (typeof o) {
+    case 'boolean':
+      // The hash values for built-in constants are a 1 value for each 5-byte
+      // shift region expect for the first, which encodes the value. This
+      // reduces the odds of a hash collision for these common values.
+      return o ? 0x42108421 : 0x42108420;
+    case 'number':
+      return hashNumber(o);
+    case 'string':
+      return o.length > STRING_HASH_CACHE_MIN_STRLEN
+        ? cachedHashString(o)
+        : hashString(o);
+    case 'object':
+    case 'function':
+      if (o === null) {
+        return 0x42108422;
+      }
+      if (typeof o.hashCode === 'function') {
+        // Drop any high bits from accidentally long hash codes.
+        return smi(o.hashCode(o));
+      }
+      if (o.valueOf !== defaultValueOf && typeof o.valueOf === 'function') {
+        o = o.valueOf(o);
+      }
+      return hashJSObj(o);
+    case 'undefined':
+      return 0x42108423;
+    default:
+      if (typeof o.toString === 'function') {
+        return hashString(o.toString());
+      }
+      throw new Error('Value type ' + typeof o + ' cannot be hashed.');
+  }
+}
+
+// Compress arbitrarily large numbers into smi hashes.
+function hashNumber(n) {
+  if (n !== n || n === Infinity) {
     return 0;
   }
-  if (typeof o.valueOf === 'function') {
-    o = o.valueOf();
-    if (o === false || o === null || o === undefined) {
-      return 0;
-    }
+  let hash = n | 0;
+  if (hash !== n) {
+    hash ^= n * 0xffffffff;
   }
-  if (o === true) {
-    return 1;
+  while (n > 0xffffffff) {
+    n /= 0xffffffff;
+    hash ^= n;
   }
-  const type = typeof o;
-  if (type === 'number') {
-    if (o !== o || o === Infinity) {
-      return 0;
-    }
-    let h = o | 0;
-    if (h !== o) {
-      h ^= o * 0xffffffff;
-    }
-    while (o > 0xffffffff) {
-      o /= 0xffffffff;
-      h ^= o;
-    }
-    return smi(h);
-  }
-  if (type === 'string') {
-    return o.length > STRING_HASH_CACHE_MIN_STRLEN
-      ? cachedHashString(o)
-      : hashString(o);
-  }
-  if (typeof o.hashCode === 'function') {
-    return o.hashCode();
-  }
-  if (type === 'object') {
-    return hashJSObj(o);
-  }
-  if (typeof o.toString === 'function') {
-    return hashString(o.toString());
-  }
-  throw new Error('Value type ' + type + ' cannot be hashed.');
+  return smi(hash);
 }
 
 function cachedHashString(string) {
-  let hash = stringHashCache[string];
-  if (hash === undefined) {
-    hash = hashString(string);
+  let hashed = stringHashCache[string];
+  if (hashed === undefined) {
+    hashed = hashString(string);
     if (STRING_HASH_CACHE_SIZE === STRING_HASH_CACHE_MAX_SIZE) {
       STRING_HASH_CACHE_SIZE = 0;
       stringHashCache = {};
     }
     STRING_HASH_CACHE_SIZE++;
-    stringHashCache[string] = hash;
+    stringHashCache[string] = hashed;
   }
-  return hash;
+  return hashed;
 }
 
 // http://jsperf.com/hashing-strings
@@ -76,46 +83,46 @@ function hashString(string) {
   // where s[i] is the ith character of the string and n is the length of
   // the string. We "mod" the result to make it between 0 (inclusive) and 2^31
   // (exclusive) by dropping high bits.
-  let hash = 0;
+  let hashed = 0;
   for (let ii = 0; ii < string.length; ii++) {
-    hash = 31 * hash + string.charCodeAt(ii) | 0;
+    hashed = (31 * hashed + string.charCodeAt(ii)) | 0;
   }
-  return smi(hash);
+  return smi(hashed);
 }
 
 function hashJSObj(obj) {
-  let hash;
+  let hashed;
   if (usingWeakMap) {
-    hash = weakMap.get(obj);
-    if (hash !== undefined) {
-      return hash;
+    hashed = weakMap.get(obj);
+    if (hashed !== undefined) {
+      return hashed;
     }
   }
 
-  hash = obj[UID_HASH_KEY];
-  if (hash !== undefined) {
-    return hash;
+  hashed = obj[UID_HASH_KEY];
+  if (hashed !== undefined) {
+    return hashed;
   }
 
   if (!canDefineProperty) {
-    hash = obj.propertyIsEnumerable && obj.propertyIsEnumerable[UID_HASH_KEY];
-    if (hash !== undefined) {
-      return hash;
+    hashed = obj.propertyIsEnumerable && obj.propertyIsEnumerable[UID_HASH_KEY];
+    if (hashed !== undefined) {
+      return hashed;
     }
 
-    hash = getIENodeHash(obj);
-    if (hash !== undefined) {
-      return hash;
+    hashed = getIENodeHash(obj);
+    if (hashed !== undefined) {
+      return hashed;
     }
   }
 
-  hash = ++objHashUID;
+  hashed = ++objHashUID;
   if (objHashUID & 0x40000000) {
     objHashUID = 0;
   }
 
   if (usingWeakMap) {
-    weakMap.set(obj, hash);
+    weakMap.set(obj, hashed);
   } else if (isExtensible !== undefined && isExtensible(obj) === false) {
     throw new Error('Non-extensible objects are not allowed as keys.');
   } else if (canDefineProperty) {
@@ -123,7 +130,7 @@ function hashJSObj(obj) {
       enumerable: false,
       configurable: false,
       writable: false,
-      value: hash
+      value: hashed,
     });
   } else if (
     obj.propertyIsEnumerable !== undefined &&
@@ -139,18 +146,18 @@ function hashJSObj(obj) {
         arguments
       );
     };
-    obj.propertyIsEnumerable[UID_HASH_KEY] = hash;
+    obj.propertyIsEnumerable[UID_HASH_KEY] = hashed;
   } else if (obj.nodeType !== undefined) {
     // At this point we couldn't get the IE `uniqueID` to use as a hash
     // and we couldn't use a non-enumerable property to exploit the
     // dontEnum bug so we simply add the `UID_HASH_KEY` on the node
     // itself.
-    obj[UID_HASH_KEY] = hash;
+    obj[UID_HASH_KEY] = hashed;
   } else {
     throw new Error('Unable to set a non-enumerable property on object.');
   }
 
-  return hash;
+  return hashed;
 }
 
 // Get references to ES5 object methods.

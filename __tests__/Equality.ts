@@ -1,3 +1,10 @@
+/**
+ * Copyright (c) 2014-present, Facebook, Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 ///<reference path='../resources/jest.d.ts'/>
 
 import * as jasmineCheck from 'jasmine-check';
@@ -6,18 +13,17 @@ jasmineCheck.install();
 import { is, List, Map, Seq, Set } from '../';
 
 describe('Equality', () => {
-
   function expectIs(left, right) {
-    let comparison = is(left, right);
+    const comparison = is(left, right);
     expect(comparison).toBe(true);
-    let commutative = is(right, left);
+    const commutative = is(right, left);
     expect(commutative).toBe(true);
   }
 
   function expectIsNot(left, right) {
-    let comparison = is(left, right);
+    const comparison = is(left, right);
     expect(comparison).toBe(false);
-    let commutative = is(right, left);
+    const commutative = is(right, left);
     expect(commutative).toBe(false);
   }
 
@@ -40,29 +46,30 @@ describe('Equality', () => {
     expectIs(0, -0);
     expectIs(NaN, 0 / 0);
 
-    let str = "hello";
+    const str = 'hello';
     expectIs(str, str);
-    expectIs(str, "hello");
-    expectIsNot("hello", "HELLO");
-    expectIsNot("hello", "goodbye");
+    expectIs(str, 'hello');
+    expectIsNot('hello', 'HELLO');
+    expectIsNot('hello', 'goodbye');
 
-    let array = [1, 2, 3];
+    const array = [1, 2, 3];
     expectIs(array, array);
     expectIsNot(array, [1, 2, 3]);
 
-    let object = {key: 'value'};
+    const object = { key: 'value' };
     expectIs(object, object);
-    expectIsNot(object, {key: 'value'});
+    expectIsNot(object, { key: 'value' });
   });
 
   it('dereferences things', () => {
-    let ptrA = {foo: 1}, ptrB = {foo: 2};
+    const ptrA = { foo: 1 },
+      ptrB = { foo: 2 };
     expectIsNot(ptrA, ptrB);
     ptrA.valueOf = ptrB.valueOf = function() {
       return 5;
     };
     expectIs(ptrA, ptrB);
-    let object = {key: 'value'};
+    const object = { key: 'value' };
     ptrA.valueOf = ptrB.valueOf = function() {
       return object;
     };
@@ -85,10 +92,10 @@ describe('Equality', () => {
   });
 
   it('compares sequences', () => {
-    let arraySeq = Seq.of(1, 2, 3);
-    let arraySeq2 = Seq([1, 2, 3]);
+    const arraySeq = Seq([1, 2, 3]);
+    const arraySeq2 = Seq([1, 2, 3]);
     expectIs(arraySeq, arraySeq);
-    expectIs(arraySeq, Seq.of(1, 2, 3));
+    expectIs(arraySeq, Seq([1, 2, 3]));
     expectIs(arraySeq2, arraySeq2);
     expectIs(arraySeq2, Seq([1, 2, 3]));
     expectIsNot(arraySeq, [1, 2, 3]);
@@ -99,48 +106,46 @@ describe('Equality', () => {
   });
 
   it('compares lists', () => {
-    let list = List.of(1, 2, 3);
+    const list = List([1, 2, 3]);
     expectIs(list, list);
     expectIsNot(list, [1, 2, 3]);
 
-    expectIs(list, Seq.of(1, 2, 3));
-    expectIs(list, List.of(1, 2, 3));
+    expectIs(list, Seq([1, 2, 3]));
+    expectIs(list, List([1, 2, 3]));
 
-    let listLonger = list.push(4);
+    const listLonger = list.push(4);
     expectIsNot(list, listLonger);
-    let listShorter = listLonger.pop();
+    const listShorter = listLonger.pop();
     expect(list === listShorter).toBe(false);
     expectIs(list, listShorter);
   });
 
-  let genSimpleVal = gen.returnOneOf(['A', 1]);
+  const genSimpleVal = gen.returnOneOf(['A', 1]);
 
-  let genVal = gen.oneOf([
+  const genVal = gen.oneOf([
     gen.map(List, gen.array(genSimpleVal, 0, 4)),
     gen.map(Set, gen.array(genSimpleVal, 0, 4)),
     gen.map(Map, gen.array(gen.array(genSimpleVal, 2), 0, 4)),
   ]);
 
-  check.it('has symmetric equality', {times: 1000}, [genVal, genVal], (a, b) => {
-    expect(is(a, b)).toBe(is(b, a));
-  });
+  check.it(
+    'has symmetric equality',
+    { times: 1000 },
+    [genVal, genVal],
+    (a, b) => {
+      expect(is(a, b)).toBe(is(b, a));
+    }
+  );
 
-  check.it('has hash equality', {times: 1000}, [genVal, genVal], (a, b) => {
+  check.it('has hash equality', { times: 1000 }, [genVal, genVal], (a, b) => {
     if (is(a, b)) {
       expect(a.hashCode()).toBe(b.hashCode());
     }
   });
 
   describe('hash', () => {
-
     it('differentiates decimals', () => {
-      expect(
-        Seq.of(1.5).hashCode(),
-      ).not.toBe(
-        Seq.of(1.6).hashCode(),
-      );
+      expect(Seq([1.5]).hashCode()).not.toBe(Seq([1.6]).hashCode());
     });
-
   });
-
 });

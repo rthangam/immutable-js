@@ -1,10 +1,17 @@
+/**
+ * Copyright (c) 2014-present, Facebook, Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 const { Record } = require('../');
 
 describe('Record', () => {
-  it('defines a constructor', () => {
+  it('defines a record factory', () => {
     const MyType = Record({ a: 1, b: 2, c: 3 });
 
-    const t = new MyType();
+    const t = MyType();
     const t2 = t.set('a', 10);
 
     expect(t.a).toBe(1);
@@ -14,7 +21,7 @@ describe('Record', () => {
   it('can have mutations apply', () => {
     const MyType = Record({ a: 1, b: 2, c: 3 });
 
-    const t = new MyType();
+    const t = MyType();
 
     expect(() => {
       t.a = 10;
@@ -37,6 +44,7 @@ describe('Record', () => {
       }
     }
 
+    // Note: `new` is only used because of `class`
     const t = new Alphabet();
     const t2 = t.set('b', 200);
 
@@ -44,18 +52,26 @@ describe('Record', () => {
     expect(t instanceof Alphabet);
     expect(t.soup()).toBe(6);
     expect(t2.soup()).toBe(204);
+
+    // Uses class name as descriptive name
+    expect(Record.getDescriptiveName(t)).toBe('Alphabet');
+
+    // Uses display name over class name
+    class NotADisplayName extends Record({ x: 1 }, 'DisplayName') {}
+    const t3 = new NotADisplayName();
+    expect(Record.getDescriptiveName(t3)).toBe('DisplayName');
   });
 
   it('can be cleared', () => {
     const MyType = Record({ a: 1, b: 2, c: 3 });
-    let t = new MyType({ c: 'cats' });
+    let t = MyType({ c: 'cats' });
 
     expect(t.c).toBe('cats');
     t = t.clear();
     expect(t.c).toBe(3);
 
     const MyType2 = Record({ d: 4, e: 5, f: 6 });
-    let t2 = new MyType2({ d: 'dogs' });
+    let t2 = MyType2({ d: 'dogs' });
 
     expect(t2.d).toBe('dogs');
     t2 = t2.clear();

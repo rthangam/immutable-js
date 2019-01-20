@@ -1,12 +1,9 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
-
 
 /**
  * Cursors
@@ -17,7 +14,7 @@
  * collection to portions of your application while maintaining a central point
  * aware of changes to the entire data structure.
  *
- * This is particularly useful when used in conjuction with component-based UI
+ * This is particularly useful when used in conjunction with component-based UI
  * libraries like [React](http://facebook.github.io/react/) or to simulate
  * "state" throughout an application while maintaining a single flow of logic.
  *
